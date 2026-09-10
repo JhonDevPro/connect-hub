@@ -16,14 +16,16 @@ function RoomsPage() {
   const { profile, loading } = useSessionProfile();
   const rooms = useRooms();
 
-  useEffect(() => {
-    // Checa se o usuário está autenticado
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!data.session && !loading) {
-        void navigate({ to: "/auth", replace: true });
-      }
-    });
-  }, [loading, navigate]);
+  if (loading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <Radio className="size-6 text-primary animate-pulse" />
+          <p className="text-sm text-muted-foreground">Carregando salas...</p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     // Redireciona automaticamente para a primeira sala disponível

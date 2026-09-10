@@ -38,18 +38,26 @@ export function useSessionProfile() {
       null;
     const email = current.email ?? null;
 
+    // Seta imediatamente com os dados locais do token para não bloquear a UI
+    setProfile({
+      id: current.id,
+      name: fallbackName,
+      avatar,
+      email,
+    });
+    setLoading(false);
+
+    // Em segundo plano, busca e sincroniza no banco
     try {
-      // Tenta buscar o perfil existente
       const { data: existing } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, display_name, avatar_url")
         .eq("id", current.id)
         .maybeSingle();
 
       const profileName = existing?.display_name || fallbackName;
       const profileAvatar = existing?.avatar_url || avatar;
 
-      // Upsert seguro garantindo que o perfil está no banco
       if (!existing) {
         await supabase.from("profiles").upsert(
           {
@@ -68,36 +76,42 @@ export function useSessionProfile() {
         email,
       });
     } catch {
-      // Fallback local se o banco falhar
-      setProfile({
-        id: current.id,
-        name: fallbackName,
-        avatar,
-        email,
-      });
-    } finally {
-      setLoading(false);
+      // Ignora erro de rede/banco, o perfil já está setado com o token
     }
   }, []);
 
   useEffect(() => {
     let active = true;
 
-    // 1. Obtém sessão atual
-    void supabase.auth.getSession().then(({ data }) => {
-      if (active) {
-        void syncProfile(data.session?.user ?? null);
-      }
-    });
-
-    // 2. Escuta mudanças na autenticação em tempo real (ex: retorno do Google OAuth)
+    // Escuta mudanças de auth em tempo real (INITIAL_SESSION, SIGNED_IN, etc)
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (active) {
-          void syncProfile(session?.user ?? null);
+      (event, session) => {
+        if (!active) return;
+        if (session?.user) {
+          void syncProfile(session.user);
+        } else if (event === "SIGNED_OUT") {
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
         }
       }
     );
+
+    // Checa sessão inicial existente
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) {
+        if (data.session?.user) {
+          void syncProfile(data.session.user);
+        } else {
+          // Pequeno timeout defensivo para garantir que o storage foi lido
+          setTimeout(() => {
+            if (active) {
+              setLoading(false);
+            }
+          }, 300);
+        }
+      }
+    });
 
     return () => {
       active = false;

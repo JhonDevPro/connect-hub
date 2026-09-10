@@ -124,8 +124,9 @@ export function ChatPanel({ roomId, userId }: { roomId: string; userId: string }
   });
 
   useEffect(() => {
+    const channelName = `messages-${roomId}-${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
-      .channel(`messages:${roomId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `room_id=eq.${roomId}` },
@@ -135,7 +136,9 @@ export function ChatPanel({ roomId, userId }: { roomId: string; userId: string }
       )
       .subscribe();
     return () => {
-      void supabase.removeChannel(channel);
+      try {
+        void supabase.removeChannel(channel);
+      } catch {}
     };
   }, [roomId, queryClient]);
 

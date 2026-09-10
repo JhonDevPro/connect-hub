@@ -45,15 +45,6 @@ function RoomView() {
   const [activeTab, setActiveTab] = useState<"chat" | "members">("chat");
   const [showSidePanel, setShowSidePanel] = useState(true);
 
-  // Redireciona para login se não autenticado
-  useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!data.session && !profileLoading) {
-        void navigate({ to: "/auth", replace: true });
-      }
-    });
-  }, [profileLoading, navigate]);
-
   const currentRoom = roomsQuery.data?.find((r) => r.id === roomId);
 
   // Sessão da chamada de vídeo P2P
@@ -61,6 +52,39 @@ function RoomView() {
 
   // Presença global de membros do time (verde = online, vermelho = offline)
   const { members: allTeamMembers } = useGlobalPresence(profile);
+
+  if (profileLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-panel">
+            <Radio className="size-6 animate-pulse" />
+          </div>
+          <p className="text-sm font-medium text-foreground">Entrando na sala...</p>
+          <p className="text-xs text-muted-foreground">Sincronizando áudio e vídeo da equipe</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground font-sans p-6 text-center">
+        <div className="max-w-sm space-y-4">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-secondary text-primary">
+            <Radio className="size-7" />
+          </div>
+          <h2 className="text-xl font-bold">Faça login para entrar na sala</h2>
+          <p className="text-xs text-muted-foreground">
+            Você precisa estar logado com sua conta Google ou e-mail para participar da chamada e do chat.
+          </p>
+          <Button asChild className="w-full">
+            <Link to="/auth">Fazer login / Criar conta</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const {
     inCall,

@@ -51,7 +51,8 @@ export function useRoomSession(roomId: string, me: Me | null) {
   /* ---------- presence ---------- */
   useEffect(() => {
     if (!me || !roomId) return;
-    const channel = supabase.channel(`room-presence:${roomId}`, {
+    const channelName = `room-presence-${roomId}-${me.id}-${Math.random().toString(36).slice(2, 7)}`;
+    const channel = supabase.channel(channelName, {
       config: { presence: { key: me.id } },
     });
     channelRef.current = channel;
@@ -81,7 +82,9 @@ export function useRoomSession(roomId: string, me: Me | null) {
 
     return () => {
       channelRef.current = null;
-      supabase.removeChannel(channel);
+      try {
+        void supabase.removeChannel(channel);
+      } catch {}
     };
   }, [roomId, me?.id, me?.name, me?.avatar]);
 
