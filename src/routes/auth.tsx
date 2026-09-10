@@ -49,16 +49,30 @@ function AuthPage() {
 
   async function google() {
     setBusy(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        // Fallback direto ao Supabase caso executado fora do cloud sandbox
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: window.location.origin },
+        });
+        if (error) throw error;
+        return;
+      }
+      if (result.redirected) return;
+      void navigate({ to: "/rooms", replace: true });
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível entrar com Google. Verifique se o provedor está ativo no Supabase.",
+      );
+    } finally {
       setBusy(false);
-      toast.error("Não foi possível entrar com Google");
-      return;
     }
-    if (result.redirected) return;
-    void navigate({ to: "/rooms", replace: true });
   }
 
   async function withEmail(e: React.FormEvent) {

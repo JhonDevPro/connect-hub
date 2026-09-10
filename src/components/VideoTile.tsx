@@ -34,7 +34,7 @@ export function VideoTile({
     const el = videoRef.current;
     if (!el) return;
     el.muted = isLocal || deafened;
-    el.volume = volume / 100;
+    el.volume = Math.min(1, Math.max(0, volume / 100));
   }, [volume, deafened, isLocal]);
 
   return (
@@ -46,6 +46,7 @@ export function VideoTile({
         muted={isLocal || deafened}
         className={cn(
           "h-full w-full object-cover transition-opacity",
+          isLocal && "-scale-x-100",
           camOn ? "opacity-100" : "opacity-0",
         )}
       />
