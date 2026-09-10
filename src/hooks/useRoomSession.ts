@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type Peer from "peerjs";
 import type { MediaConnection } from "peerjs";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,11 @@ export type Member = {
 export type RemoteParticipant = {
   peerId: string;
   stream: MediaStream;
+};
+
+export type MediaDeviceInfoItem = {
+  deviceId: string;
+  label: string;
 };
 
 type Me = { id: string; name: string; avatar: string | null };
@@ -41,12 +46,66 @@ export function useRoomSession(roomId: string, me: Me | null) {
   const [pttActive, setPttActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Dispositivos identificados no navegador (Tablets, Celulares e Notebooks)
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfoItem[]>([]);
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfoItem[]>([]);
+  const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState<string>("");
+  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState<string>("");
+
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const peerRef = useRef<Peer | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const callsRef = useRef<Map<string, MediaConnection>>(new Map());
 
   const micLive = micOn && (!pushToTalk || pttActive);
+
+  /* ---------- Identifica Câmeras e Microfones disponíveis no Tablet/Navegador ---------- */
+  const refreshDevices = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
+      return;
+    }
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const vDevs: MediaDeviceInfoItem[] = [];
+      const aDevs: MediaDeviceInfoItem[] = [];
+
+      devices.forEach((d) => {
+        if (d.kind === "videoinput") {
+          vDevs.push({
+            deviceId: d.deviceId,
+            label: d.label || `Câmera ${vDevs.length + 1}`,
+          });
+        } else if (d.kind === "audioinput") {
+          aDevs.push({
+            deviceId: d.deviceId,
+            label: d.label || `Microfone ${aDevs.length + 1}`,
+          });
+        }
+      });
+
+      setVideoDevices(vDevs);
+      setAudioDevices(aDevs);
+
+      if (vDevs.length > 0 && !selectedVideoDeviceId) {
+        setSelectedVideoDeviceId(vDevs[0].deviceId);
+      }
+      if (aDevs.length > 0 && !selectedAudioDeviceId) {
+        setSelectedAudioDeviceId(aDevs[0].deviceId);
+      }
+    } catch (e) {
+      console.warn("Não foi possível listar dispositivos de mídia:", e);
+    }
+  }, [selectedVideoDeviceId, selectedAudioDeviceId]);
+
+  useEffect(() => {
+    void refreshDevices();
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
+      return () => {
+        navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
+      };
+    }
+  }, [refreshDevices]);
 
   /* ---------- presence ---------- */
   useEffect(() => {
@@ -177,22 +236,117 @@ export function useRoomSession(roomId: string, me: Me | null) {
     }
   }, [members, peerId, inCall, attachCall, localStream]);
 
+  /* ---------- Obter Stream com Fallback para Tablet/Mobile ---------- */
+  const acquireUserMedia = useCallback(
+    async (preferredVideoId?: string, preferredAudioId?: string) => {
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Seu navegador não suporta chamadas de vídeo e áudio.");
+      }
+
+      const audioConstraint: boolean | MediaTrackConstraints = preferredAudioId
+        ? { deviceId: { exact: preferredAudioId }, echoCancellation: true, noiseSuppression: true }
+        : { echoCancellation: true, noiseSuppression: true };
+
+      // Tentativa 1: Resolução ideal em HD (para Notebooks e Tablets modernos)
+      try {
+        const videoConstraint: boolean | MediaTrackConstraints = preferredVideoId
+          ? { deviceId: { exact: preferredVideoId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } };
+
+        return await navigator.mediaDevices.getUserMedia({
+          video: videoConstraint,
+          audio: audioConstraint,
+        });
+      } catch (err1) {
+        console.warn("Tentativa HD falhou no tablet, tentando constraints flexíveis:", err1);
+      }
+
+      // Tentativa 2: Sem restrição de resolução (compatibilidade total com tablets Android/iPad)
+      try {
+        const fallbackVideo: boolean | MediaTrackConstraints = preferredVideoId
+          ? { deviceId: { exact: preferredVideoId } }
+          : true;
+
+        return await navigator.mediaDevices.getUserMedia({
+          video: fallbackVideo,
+          audio: audioConstraint,
+        });
+      } catch (err2) {
+        console.warn("Tentativa flexível falhou, tentando fallback de áudio apenas:", err2);
+      }
+
+      // Tentativa 3: Apenas áudio caso a câmera esteja bloqueada ou sem permissão
+      try {
+        const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: audioConstraint,
+        });
+        setCamOn(false);
+        return audioOnlyStream;
+      } catch (err3) {
+        throw new Error(
+          "Permissão de microfone ou câmera negada. Por favor, autorize o acesso no seu navegador."
+        );
+      }
+    },
+    []
+  );
+
+  /* ---------- Alternar Câmera no Tablet (Frontal ↔ Traseira) ---------- */
+  const switchCamera = useCallback(async () => {
+    if (videoDevices.length <= 1) return;
+    const currentIndex = videoDevices.findIndex((d) => d.deviceId === selectedVideoDeviceId);
+    const nextIndex = (currentIndex + 1) % videoDevices.length;
+    const nextDevice = videoDevices[nextIndex];
+    if (!nextDevice) return;
+
+    setSelectedVideoDeviceId(nextDevice.deviceId);
+
+    if (inCall && streamRef.current) {
+      try {
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: nextDevice.deviceId } },
+        });
+        const newVideoTrack = newStream.getVideoTracks()[0];
+        if (newVideoTrack) {
+          const oldVideoTrack = streamRef.current.getVideoTracks()[0];
+          if (oldVideoTrack) {
+            streamRef.current.removeTrack(oldVideoTrack);
+            oldVideoTrack.stop();
+          }
+          streamRef.current.addTrack(newVideoTrack);
+          setLocalStream(new MediaStream(streamRef.current.getTracks()));
+
+          // Substitui o track em todas as conexões PeerJS ativas
+          callsRef.current.forEach((call) => {
+            const peerConnection = (call as unknown as { peerConnection?: RTCPeerConnection })?.peerConnection;
+            if (peerConnection) {
+              const senders = peerConnection.getSenders();
+              const videoSender = senders.find((s) => s.track?.kind === "video");
+              if (videoSender) {
+                void videoSender.replaceTrack(newVideoTrack);
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Falha ao alternar câmera no tablet:", e);
+      }
+    }
+  }, [videoDevices, selectedVideoDeviceId, inCall]);
+
   const join = useCallback(async () => {
     if (inCall || connecting) return;
     setConnecting(true);
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 },
-        },
-        audio: { echoCancellation: true, noiseSuppression: true },
-      });
+      const stream = await acquireUserMedia(selectedVideoDeviceId, selectedAudioDeviceId);
       streamRef.current = stream;
       setLocalStream(stream);
       stream.getAudioTracks().forEach((t) => (t.enabled = micOn && !pushToTalk));
+
+      // Atualiza a lista de dispositivos agora que as permissões foram concedidas
+      void refreshDevices();
 
       const { default: PeerCtor } = await import("peerjs");
       const peer = new PeerCtor({ config: ICE });
@@ -223,12 +377,12 @@ export function useRoomSession(roomId: string, me: Me | null) {
       setError(
         e instanceof Error
           ? e.message
-          : "Não foi possível acessar câmera e microfone",
+          : "Não foi possível acessar a câmera e o microfone do dispositivo.",
       );
     } finally {
       setConnecting(false);
     }
-  }, [inCall, connecting, micOn, pushToTalk, attachCall]);
+  }, [inCall, connecting, micOn, pushToTalk, attachCall, acquireUserMedia, selectedVideoDeviceId, selectedAudioDeviceId, refreshDevices]);
 
   const leave = useCallback(() => {
     callsRef.current.forEach((c) => c.close());
@@ -274,6 +428,13 @@ export function useRoomSession(roomId: string, me: Me | null) {
     pttKey,
     setPttKey,
     pttActive,
+    videoDevices,
+    audioDevices,
+    selectedVideoDeviceId,
+    setSelectedVideoDeviceId,
+    selectedAudioDeviceId,
+    setSelectedAudioDeviceId,
+    switchCamera,
     join,
     leave,
   };

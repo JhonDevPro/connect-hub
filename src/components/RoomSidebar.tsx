@@ -231,7 +231,7 @@ export function RoomSidebar({
               </p>
               <p className="truncate font-mono text-[10px] text-muted-foreground flex items-center gap-1">
                 <Mail className="size-2.5 shrink-0 opacity-60" />
-                <span>{member.email || "Gmail/Email"}</span>
+                <span>{member.email || (member.isOnline ? "Conectado" : "Membro da equipe")}</span>
               </p>
             </div>
           </div>
