@@ -11,13 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as AuthenticatedRoomsRouteImport } from './routes/_authenticated/rooms'
-import { Route as AuthenticatedRoomRoomIdRouteImport } from './routes/_authenticated/room.'
+import { Route as RoomsRouteImport } from './routes/rooms'
+import { Route as RoomRoomIdRouteImport } from './routes/room.'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const RoomsRoute = RoomsRouteImport.update({
+  id: '/rooms',
+  path: '/rooms',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -27,44 +26,38 @@ const AuthRoute = AuthRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
-const AuthenticatedRoomsRoute = AuthenticatedRoomsRouteImport.update({
-  id: '/rooms',
-  path: '/rooms',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-
-const AuthenticatedRoomRoomIdRoute = AuthenticatedRoomRoomIdRouteImport.update({
+const RoomRoomIdRoute = RoomRoomIdRouteImport.update({
   id: '/room/',
   path: '/room/',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/rooms': typeof AuthenticatedRoomsRoute
-  '/room/': typeof AuthenticatedRoomRoomIdRoute
+  '/rooms': typeof RoomsRoute
+  '/room/': typeof RoomRoomIdRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/rooms': typeof AuthenticatedRoomsRoute
-  '/room/': typeof AuthenticatedRoomRoomIdRoute
+  '/rooms': typeof RoomsRoute
+  '/room/': typeof RoomRoomIdRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/_authenticated': typeof AuthenticatedRouteRoute
-  '/_authenticated/rooms': typeof AuthenticatedRoomsRoute
-  '/_authenticated/room/': typeof AuthenticatedRoomRoomIdRoute
+  '/rooms': typeof RoomsRoute
+  '/room/': typeof RoomRoomIdRoute
 }
 
 export interface FileRouteTypes {
@@ -72,24 +65,27 @@ export interface FileRouteTypes {
   fullPaths: '/' | '/auth' | '/rooms' | '/room/'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/auth' | '/rooms' | '/room/'
-  id: '__root__' | '/' | '/auth' | '/_authenticated' | '/_authenticated/rooms' | '/_authenticated/room/'
+  id: '__root__' | '/' | '/auth' | '/rooms' | '/room/'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
-  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  RoomsRoute: typeof RoomsRoute
+  RoomRoomIdRoute: typeof RoomRoomIdRoute
 }
 
-const AuthenticatedRouteRouteChildren = {
-  AuthenticatedRoomsRoute: AuthenticatedRoomsRoute,
-  AuthenticatedRoomRoomIdRoute: AuthenticatedRoomRoomIdRoute,
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
+  RoomsRoute: RoomsRoute,
+  RoomRoomIdRoute: RoomRoomIdRoute,
 }
 
-const AuthenticatedRouteRouteWithChildren = AuthenticatedRouteRoute._addFileChildren(
-  AuthenticatedRouteRouteChildren,
-)
+export const routeTree = rootRouteImport
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
@@ -107,39 +103,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/rooms': {
-      id: '/_authenticated/rooms'
+    '/rooms': {
+      id: '/rooms'
       path: '/rooms'
       fullPath: '/rooms'
-      preLoaderRoute: typeof AuthenticatedRoomsRouteImport
-      parentRoute: typeof AuthenticatedRouteRouteImport
+      preLoaderRoute: typeof RoomsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/room/': {
-      id: '/_authenticated/room/'
+    '/room/': {
+      id: '/room/'
       path: '/room/'
       fullPath: '/room/'
-      preLoaderRoute: typeof AuthenticatedRoomRoomIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRouteImport
+      preLoaderRoute: typeof RoomRoomIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
-  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-}
-
-export const routeTree = rootRouteImport
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
 import type { startInstance } from './start.ts'

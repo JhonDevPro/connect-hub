@@ -1,13 +1,14 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Hash, LogOut, Plus, Radio } from "lucide-react";
+import { Hash, LogOut, Plus, Radio, Users, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { SessionProfile } from "@/hooks/useSessionProfile";
+import { useGlobalPresence } from "@/hooks/useGlobalPresence";
 
 export type Room = { id: string; name: string; description: string | null };
 
@@ -19,8 +20,11 @@ export function useRooms() {
         .from("rooms")
         .select("id, name, description")
         .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data as Room[];
+      if (error) {
+        console.error("Erro ao carregar salas:", error);
+        return [];
+      }
+      return (data || []) as Room[];
     },
   });
 }
@@ -37,25 +41,56 @@ export function RoomSidebar({
   const navigate = useNavigate();
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  // Presença de todos os membros do sistema com indicador online (verde) / offline (vermelho)
+  const { members, onlineCount } = useGlobalPresence(profile);
 
   const createRoom = useMutation({
     mutationFn: async (name: string) => {
-      if (!profile) throw new Error("Sessão expirada");
+      setCreating(true);
+      // Obtém o ID do usuário direto da sessão autenticada do Supabase
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData.session?.user?.id || profile?.id;
+
+      if (!currentUserId) {
+        throw new Error("Você precisa estar autenticado para criar uma sala.");
+      }
+
       const { data, error } = await supabase
         .from("rooms")
-        .insert({ name, created_by: profile.id })
+        .insert({
+          name: name.trim(),
+          created_by: currentUserId,
+        })
         .select("id")
         .single();
-      if (error) throw error;
+
+      if (error) {
+        // Tenta fallback sem created_by caso haja divergência de foreign key
+        const fallback = await supabase
+          .from("rooms")
+          .insert({ name: name.trim() })
+          .select("id")
+          .single();
+        if (fallback.error) throw fallback.error;
+        return fallback.data.id as string;
+      }
+
       return data.id as string;
     },
     onSuccess: (id) => {
       setNewName("");
       setAdding(false);
+      setCreating(false);
+      toast.success("Sala criada com sucesso!");
       void queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      void navigate({ to: "/room/$roomId", params: { roomId: id } });
+      void navigate({ to: "/room/", params: { roomId: id } });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      setCreating(false);
+      toast.error(e.message || "Erro ao criar sala");
+    },
   });
 
   async function signOut() {
@@ -66,24 +101,29 @@ export function RoomSidebar({
   }
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex items-center gap-2 px-4 py-4 text-primary">
-        <Radio className="size-5" />
-        <Link to="/" className="font-display text-base font-semibold text-foreground">
-          Nexo
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar font-sans select-none">
+      {/* Brand Header */}
+      <div className="flex items-center gap-2.5 px-4 py-4 text-primary border-b border-sidebar-border/40">
+        <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+          <Radio className="size-4" />
+        </div>
+        <Link to="/rooms" className="font-display text-base font-bold text-foreground hover:opacity-90">
+          Nexo Hub
         </Link>
       </div>
 
-      <div className="flex items-center justify-between px-4 pb-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Salas
+      {/* Lista de Salas */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Salas de Chamada
         </span>
         <Button
           variant="ghost"
           size="icon"
-          className="size-7"
+          className="size-7 rounded-lg hover:bg-surface text-muted-foreground hover:text-foreground"
           aria-label="Nova sala"
           onClick={() => setAdding((v) => !v)}
+          title="Criar nova sala"
         >
           <Plus className="size-4" />
         </Button>
@@ -95,53 +135,142 @@ export function RoomSidebar({
           onSubmit={(e) => {
             e.preventDefault();
             const value = newName.trim();
-            if (value) createRoom.mutate(value);
+            if (value && !creating) createRoom.mutate(value);
           }}
         >
-          <Input
-            autoFocus
-            value={newName}
-            placeholder="Nome da sala"
-            onChange={(e) => setNewName(e.target.value)}
-            className="h-8 bg-background text-sm"
-          />
+          <div className="flex items-center gap-1.5">
+            <Input
+              autoFocus
+              value={newName}
+              placeholder="Nome da sala..."
+              onChange={(e) => setNewName(e.target.value)}
+              className="h-8 bg-background text-sm text-foreground placeholder:text-muted-foreground/60"
+              disabled={creating}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              className="h-8 px-2.5 text-xs"
+              disabled={creating || !newName.trim()}
+            >
+              {creating ? <Loader2 className="size-3 animate-spin" /> : "Criar"}
+            </Button>
+          </div>
         </form>
       )}
 
-      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2">
-        {rooms.data?.map((room) => (
-          <Link
-            key={room.id}
-            to="/room/$roomId"
-            params={{ roomId: room.id }}
-            className={cn(
-              "flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors",
-              room.id === activeRoomId
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-            )}
-          >
-            <Hash className="size-4 shrink-0" />
-            <span className="truncate">{room.name}</span>
-          </Link>
-        ))}
+      <nav className="space-y-0.5 overflow-y-auto px-2 max-h-48 scrollbar-thin">
+        {rooms.isLoading ? (
+          <p className="px-3 py-2 text-xs text-muted-foreground">Carregando salas...</p>
+        ) : rooms.data?.length === 0 ? (
+          <p className="px-3 py-2 text-xs text-muted-foreground">
+            Nenhuma sala criada. Clique em + acima.
+          </p>
+        ) : (
+          rooms.data?.map((room) => (
+            <Link
+              key={room.id}
+              to="/room/"
+              params={{ roomId: room.id }}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
+                room.id === activeRoomId
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:bg-surface hover:text-foreground"
+              )}
+            >
+              <Hash className="size-4 shrink-0 opacity-70" />
+              <span className="truncate">{room.name}</span>
+            </Link>
+          ))
+        )}
       </nav>
 
-      <div className="border-t border-sidebar-border p-3">
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-secondary text-xs font-semibold">
-            {profile?.avatar ? (
-              <img src={profile.avatar} alt="" className="size-full object-cover" />
-            ) : (
-              (profile?.name ?? "?").slice(0, 1).toUpperCase()
-            )}
+      {/* Divisor */}
+      <div className="my-3 mx-4 border-t border-sidebar-border/40" />
+
+      {/* Lista de Membros Online/Offline */}
+      <div className="flex items-center justify-between px-4 pb-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <Users className="size-3.5" /> Membros
+        </span>
+        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+          {onlineCount} online
+        </span>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-2 space-y-1">
+        {members.map((member) => (
+          <div
+            key={member.id}
+            className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs hover:bg-surface/60 transition-colors"
+          >
+            <div className="relative shrink-0">
+              <div className="flex size-7 items-center justify-center overflow-hidden rounded-full bg-secondary text-[10px] font-bold text-foreground">
+                {member.avatar ? (
+                  <img src={member.avatar} alt="" className="size-full object-cover" />
+                ) : (
+                  (member.name || "?").slice(0, 2).toUpperCase()
+                )}
+              </div>
+              {/* Pontinho verde (online) ou vermelho (offline) */}
+              <span
+                title={member.isOnline ? "Online" : "Offline (fechou a página)"}
+                className={cn(
+                  "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-sidebar",
+                  member.isOnline
+                    ? "bg-emerald-500 shadow-sm shadow-emerald-500/50 animate-pulse"
+                    : "bg-red-500/80"
+                )}
+              />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-foreground">
+                {member.name}
+              </p>
+              <p className="truncate font-mono text-[10px] text-muted-foreground flex items-center gap-1">
+                <Mail className="size-2.5 shrink-0 opacity-60" />
+                <span>{member.email || "Gmail/Email"}</span>
+              </p>
+            </div>
           </div>
-          <span className="min-w-0 flex-1 truncate text-sm">{profile?.name ?? "…"}</span>
+        ))}
+      </div>
+
+      {/* Rodapé: Meu Usuário Logado e Logout */}
+      <div className="border-t border-sidebar-border/60 bg-surface/40 p-3">
+        <div className="flex items-center gap-2.5">
+          <div className="relative shrink-0">
+            <div className="flex size-9 items-center justify-center overflow-hidden rounded-full bg-primary/20 text-xs font-bold text-primary border border-primary/30">
+              {profile?.avatar ? (
+                <img src={profile.avatar} alt="" className="size-full object-cover" />
+              ) : (
+                (profile?.name ?? "?").slice(0, 2).toUpperCase()
+              )}
+            </div>
+            {/* Pontinho verde do próprio usuário online */}
+            <span
+              title="Você está online"
+              className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-sidebar bg-emerald-500"
+            />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <span className="block truncate text-xs font-semibold text-foreground">
+              {profile?.name || "Conectando..."}
+            </span>
+            <span className="block truncate font-mono text-[10px] text-muted-foreground">
+              {profile?.email || "Autenticado"}
+            </span>
+          </div>
+
           <Button
             variant="ghost"
             size="icon"
-            className="size-8"
-            aria-label="Sair"
+            className="size-8 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            aria-label="Sair da conta"
+            title="Sair da conta"
             onClick={() => void signOut()}
           >
             <LogOut className="size-4" />

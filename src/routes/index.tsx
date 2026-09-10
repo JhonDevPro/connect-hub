@@ -1,6 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+﻿import { useEffect } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { MessagesSquare, Radio, ShieldCheck, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,8 +45,19 @@ const features = [
 ];
 
 function Landing() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Se o usuário já estiver logado (Google ou Email), redireciona direto para as salas
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        void navigate({ to: "/rooms", replace: true });
+      }
+    });
+  }, [navigate]);
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16">
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16 font-sans">
       <div className="flex items-center gap-2 text-primary">
         <Radio className="size-5" />
         <span className="font-display text-lg font-semibold text-foreground">Nexo</span>
@@ -60,11 +73,11 @@ function Landing() {
       </p>
 
       <div className="mt-8 flex flex-wrap gap-3">
-        <Button asChild size="lg">
+        <Button asChild size="lg" className="shadow-glow">
           <Link to="/rooms">Entrar nas salas</Link>
         </Button>
         <Button asChild size="lg" variant="secondary">
-          <Link to="/auth">Criar conta</Link>
+          <Link to="/auth">Criar conta / Entrar</Link>
         </Button>
       </div>
 
@@ -72,7 +85,7 @@ function Landing() {
         {features.map((f) => (
           <div key={f.title} className="panel p-5">
             <f.icon className="size-5 text-primary" />
-            <h2 className="mt-3 text-base font-semibold">{f.title}</h2>
+            <h2 className="mt-3 text-base font-semibold text-foreground">{f.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{f.text}</p>
           </div>
         ))}

@@ -1,5 +1,5 @@
-﻿import { useState } from "react";
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+﻿import { useState, useEffect } from "react";
+import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import {
   Camera,
   CameraOff,
@@ -14,8 +14,6 @@ import {
   Volume2,
   VolumeX,
   Keyboard,
-  SlidersHorizontal,
-  Info,
   Loader2,
   AlertCircle
 } from "lucide-react";
@@ -25,31 +23,45 @@ import { ChatPanel } from "@/components/ChatPanel";
 import { MembersList } from "@/components/MembersList";
 import { useRoomSession } from "@/hooks/useRoomSession";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
+import { useGlobalPresence } from "@/hooks/useGlobalPresence";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/_authenticated/room/")({
+export const Route = createFileRoute("/room/")({
   component: RoomView,
 });
 
 function RoomView() {
-  const params = useParams({ from: "/_authenticated/room/" });
+  const params = useParams({ from: "/room/" });
   const roomId = params.roomId;
-  const { profile } = useSessionProfile();
+  const navigate = useNavigate();
+  const { profile, loading: profileLoading } = useSessionProfile();
   const roomsQuery = useRooms();
-
-  const currentRoom = roomsQuery.data?.find((r) => r.id === roomId);
 
   const [activeTab, setActiveTab] = useState<"chat" | "members">("chat");
   const [showSidePanel, setShowSidePanel] = useState(true);
 
+  // Redireciona para login se não autenticado
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!data.session && !profileLoading) {
+        void navigate({ to: "/auth", replace: true });
+      }
+    });
+  }, [profileLoading, navigate]);
+
+  const currentRoom = roomsQuery.data?.find((r) => r.id === roomId);
+
+  // Sessão da chamada de vídeo P2P
   const session = useRoomSession(roomId, profile);
 
+  // Presença global de membros do time (verde = online, vermelho = offline)
+  const { members: allTeamMembers } = useGlobalPresence(profile);
+
   const {
-    members,
-    memberByPeer,
     inCall,
     connecting,
     error,
@@ -64,8 +76,6 @@ function RoomView() {
     setDeafened,
     pushToTalk,
     setPushToTalk,
-    pttKey,
-    setPttKey,
     pttActive,
     join,
     leave,
@@ -75,19 +85,19 @@ function RoomView() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
-      {/* Barra Lateral Esquerda: Salas e Usuário */}
+      {/* Barra Lateral Esquerda */}
       <RoomSidebar activeRoomId={roomId} profile={profile} />
 
-      {/* Área Central: Chamada de Vídeo e Header */}
+      {/* Área Central Principal */}
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        {/* Top Header da Sala */}
+        {/* Header Superior da Sala */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface/50 px-4 backdrop-blur">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Radio className="size-4" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-semibold truncate">
+              <h1 className="text-sm font-semibold truncate text-foreground">
                 {currentRoom?.name ?? "Carregando sala..."}
               </h1>
               <p className="text-xs text-muted-foreground truncate">
@@ -100,7 +110,7 @@ function RoomView() {
             {inCall && (
               <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
                 <span className="size-2 rounded-full bg-primary animate-pulse" />
-                HD P2P Conectado ({totalParticipants})
+                HD P2P ({totalParticipants})
               </span>
             )}
 
@@ -135,12 +145,14 @@ function RoomView() {
               }}
             >
               <Users className="size-4" />
-              <span className="hidden md:inline">Membros ({members.length})</span>
+              <span className="hidden md:inline">
+                Membros ({allTeamMembers.filter((m) => m.isOnline).length} on)
+              </span>
             </Button>
           </div>
         </header>
 
-        {/* Palco Principal de Vídeo */}
+        {/* Palco de Vídeo */}
         <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden p-4 bg-background">
           {error && (
             <div className="mb-3 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -155,12 +167,12 @@ function RoomView() {
               <div className="mx-auto flex size-20 items-center justify-center rounded-3xl border border-border bg-surface text-primary shadow-panel">
                 <PhoneCall className="size-10" />
               </div>
-              <h2 className="mt-6 text-xl font-bold tracking-tight">
-                Pronto para entrar na chamada de vídeo?
+              <h2 className="mt-6 text-xl font-bold tracking-tight text-foreground">
+                Entrar na chamada de vídeo
               </h2>
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                Conecte-se com áudio e vídeo HD ponto a ponto (WebRTC via PeerJS).
-                Controle individual de volume, aperte-para-falar e compartilhamento sem servidor intermediário.
+                Vídeo HD ponto a ponto direto entre os participantes (WebRTC via PeerJS).
+                Volume individual, push-to-talk e transmissão sem servidor intermediário.
               </p>
 
               <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
@@ -186,10 +198,10 @@ function RoomView() {
 
               <div className="mt-8 flex items-center gap-6 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
-                  <Camera className="size-4 text-primary" /> HD 720p / 30fps
+                  <Camera className="size-4 text-primary" /> HD 720p
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Headphones className="size-4 text-primary" /> Áudio com cancelamento de eco
+                  <Headphones className="size-4 text-primary" /> Áudio cancelamento de eco
                 </div>
               </div>
             </div>
@@ -208,30 +220,30 @@ function RoomView() {
                 {/* Meu Vídeo Local */}
                 <VideoTile
                   stream={localStream}
-                  name={profile?.name ?? "Você"}
+                  name={profile?.name ? ${profile.name} (Você) : "Você"}
                   isLocal
                   camOn={camOn}
                   micOn={micLive}
                   deafened={deafened}
                 />
 
-                {/* Vídeos Remotos */}
+                {/* Vídeos Remotos com Slider de Volume Individual */}
                 {remotes.map((remote) => {
-                  const member = memberByPeer.get(remote.peerId);
+                  const memberMatch = allTeamMembers.find((m) => m.id === remote.peerId);
                   return (
                     <VideoTile
                       key={remote.peerId}
                       stream={remote.stream}
-                      name={member?.name ?? Participante ()}
-                      camOn={member?.cam_on ?? true}
-                      micOn={member?.mic_on ?? true}
+                      name={memberMatch?.name || Participante ()}
+                      camOn={true}
+                      micOn={true}
                       deafened={deafened}
                     />
                   );
                 })}
               </div>
 
-              {/* Status Push-to-Talk Ativo */}
+              {/* Status Push-to-Talk */}
               {pushToTalk && (
                 <div className="py-2 text-center">
                   <span
@@ -244,8 +256,8 @@ function RoomView() {
                   >
                     <Keyboard className="size-3.5" />
                     {pttActive
-                      ? "TRANSMITINDO VOZ (Segurando Espaço)"
-                      : "APERTE-PARA-FALAR ATIVO (Segure Espaço para falar)"}
+                      ? "TRANSMITINDO VOZ (Barra de Espaço Pressionada)"
+                      : "PUSH-TO-TALK ATIVO: Segure a Barra de Espaço para Falar"}
                   </span>
                 </div>
               )}
@@ -282,15 +294,15 @@ function RoomView() {
                   size="icon"
                   className="size-11 rounded-xl shadow"
                   onClick={() => setDeafened((v) => !v)}
-                  aria-label={deafened ? "Desmutar som do computador" : "Silenciar saída de som"}
-                  title={deafened ? "Desmutar som do computador" : "Silenciar saída de som (Deafen)"}
+                  aria-label={deafened ? "Desmutar som" : "Silenciar saída de som"}
+                  title={deafened ? "Desmutar som" : "Silenciar saída de som (Deafen)"}
                 >
                   {deafened ? <VolumeX className="size-5" /> : <Volume2 className="size-5 text-primary" />}
                 </Button>
 
                 <div className="h-6 w-px bg-border mx-1" />
 
-                {/* Toggle Push-to-Talk */}
+                {/* Switch Push-to-Talk */}
                 <div className="flex items-center gap-2 px-2 py-1 rounded-xl bg-background/60 border border-border/50">
                   <Switch
                     id="ptt-mode"
@@ -310,7 +322,7 @@ function RoomView() {
                   onClick={() => leave()}
                 >
                   <PhoneOff className="size-4" />
-                  <span className="hidden sm:inline">Desconectar</span>
+                  <span className="hidden sm:inline">Sair da chamada</span>
                 </Button>
               </div>
             </div>
@@ -318,7 +330,7 @@ function RoomView() {
         </div>
       </div>
 
-      {/* Painel Lateral Direito: Chat e Membros Online */}
+      {/* Painel Lateral Direito: Chat e Membros */}
       {showSidePanel && (
         <aside className="flex w-80 shrink-0 flex-col border-l border-border bg-sidebar overflow-hidden transition-all">
           <div className="flex border-b border-border bg-surface/30">
@@ -342,7 +354,7 @@ function RoomView() {
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              Membros ({members.length})
+              Membros ({allTeamMembers.length})
             </button>
           </div>
 
@@ -352,7 +364,7 @@ function RoomView() {
             )}
             {activeTab === "members" && (
               <div className="p-4 overflow-y-auto h-full">
-                <MembersList members={members} />
+                <MembersList members={allTeamMembers} />
               </div>
             )}
           </div>
