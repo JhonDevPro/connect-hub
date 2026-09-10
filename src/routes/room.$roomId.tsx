@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/room/$roomId")({
+  ssr: false,
   component: RoomView,
 });
 
@@ -220,7 +221,7 @@ function RoomView() {
                 {/* Meu Vídeo Local */}
                 <VideoTile
                   stream={localStream}
-                  name={profile?.name ? ${profile.name} (Você) : "Você"}
+                  name={profile?.name ? `${profile.name} (Você)` : "Você"}
                   isLocal
                   camOn={camOn}
                   micOn={micLive}
@@ -234,7 +235,7 @@ function RoomView() {
                     <VideoTile
                       key={remote.peerId}
                       stream={remote.stream}
-                      name={memberMatch?.name || Participante ()}
+                      name={memberMatch?.name || `Participante (${remote.peerId.slice(0, 4)})`}
                       camOn={true}
                       micOn={true}
                       deafened={deafened}

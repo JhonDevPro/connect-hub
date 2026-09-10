@@ -1,10 +1,11 @@
-﻿import { useEffect } from "react";
+import { useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { MessagesSquare, Radio, ShieldCheck, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Nexo — videochamada P2P e chat para equipes" },

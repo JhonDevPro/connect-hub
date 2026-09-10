@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/rooms")({
+  ssr: false,
   component: RoomsPage,
 });
 
@@ -50,7 +51,7 @@ function RoomsPage() {
 
           <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              {loading ? "Carregando perfil..." : Olá, !}
+              {loading ? "Carregando perfil..." : `Olá, ${profile?.name || "Membro"}!`}
             </h1>
             <p className="text-sm text-muted-foreground">
               Escolha uma sala na barra lateral ou crie uma nova sala para começar a chamada em equipe com vídeo HD e chat em tempo real.
