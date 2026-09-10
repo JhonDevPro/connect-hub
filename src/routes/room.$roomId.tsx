@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import {
   Camera,
@@ -30,12 +30,12 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/room/")({
+export const Route = createFileRoute("/room/$roomId")({
   component: RoomView,
 });
 
 function RoomView() {
-  const params = useParams({ from: "/room/" });
+  const params = useParams({ from: "/room/$roomId" });
   const roomId = params.roomId;
   const navigate = useNavigate();
   const { profile, loading: profileLoading } = useSessionProfile();

@@ -1,4 +1,4 @@
-﻿import { useEffect } from "react";
+import { useEffect } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Hash, Plus, Video, Radio } from "lucide-react";
 import { RoomSidebar, useRooms } from "@/components/RoomSidebar";
@@ -30,7 +30,7 @@ function RoomsPage() {
       const firstRoom = rooms.data[0];
       if (firstRoom) {
         void navigate({
-          to: "/room/",
+          to: "/room/$roomId",
           params: { roomId: firstRoom.id },
           replace: true,
         });
@@ -70,7 +70,7 @@ function RoomsPage() {
                     variant="outline"
                     className="w-full justify-start gap-3 h-12 text-sm border-border bg-surface/60 hover:bg-surface hover:text-primary"
                   >
-                    <Link to="/room/" params={{ roomId: room.id }}>
+                    <Link to="/room/$roomId" params={{ roomId: room.id }}>
                       <Hash className="size-4 text-primary shrink-0" />
                       <span className="truncate">{room.name}</span>
                     </Link>

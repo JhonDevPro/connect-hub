@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hash, LogOut, Plus, Radio, Users, Mail, Loader2 } from "lucide-react";
@@ -85,7 +85,7 @@ export function RoomSidebar({
       setCreating(false);
       toast.success("Sala criada com sucesso!");
       void queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      void navigate({ to: "/room/", params: { roomId: id } });
+      void navigate({ to: "/room/$roomId", params: { roomId: id } });
     },
     onError: (e: Error) => {
       setCreating(false);
@@ -170,7 +170,7 @@ export function RoomSidebar({
           rooms.data?.map((room) => (
             <Link
               key={room.id}
-              to="/room/"
+              to="/room/$roomId"
               params={{ roomId: room.id }}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",

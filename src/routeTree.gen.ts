@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as RoomsRouteImport } from './routes/rooms'
-import { Route as RoomRoomIdRouteImport } from './routes/room.'
+import { Route as RoomRoomIdRouteImport } from './routes/room.$roomId'
 
 const RoomsRoute = RoomsRouteImport.update({
   id: '/rooms',
@@ -33,8 +33,8 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 
 const RoomRoomIdRoute = RoomRoomIdRouteImport.update({
-  id: '/room/',
-  path: '/room/',
+  id: '/room/$roomId',
+  path: '/room/$roomId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -42,14 +42,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/rooms': typeof RoomsRoute
-  '/room/': typeof RoomRoomIdRoute
+  '/room/$roomId': typeof RoomRoomIdRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/rooms': typeof RoomsRoute
-  '/room/': typeof RoomRoomIdRoute
+  '/room/$roomId': typeof RoomRoomIdRoute
 }
 
 export interface FileRoutesById {
@@ -57,15 +57,15 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/rooms': typeof RoomsRoute
-  '/room/': typeof RoomRoomIdRoute
+  '/room/$roomId': typeof RoomRoomIdRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/rooms' | '/room/'
+  fullPaths: '/' | '/auth' | '/rooms' | '/room/$roomId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/rooms' | '/room/'
-  id: '__root__' | '/' | '/auth' | '/rooms' | '/room/'
+  to: '/' | '/auth' | '/rooms' | '/room/$roomId'
+  id: '__root__' | '/' | '/auth' | '/rooms' | '/room/$roomId'
   fileRoutesById: FileRoutesById
 }
 
@@ -110,10 +110,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoomsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/room/': {
-      id: '/room/'
-      path: '/room/'
-      fullPath: '/room/'
+    '/room/$roomId': {
+      id: '/room/$roomId'
+      path: '/room/$roomId'
+      fullPath: '/room/$roomId'
       preLoaderRoute: typeof RoomRoomIdRouteImport
       parentRoute: typeof rootRouteImport
     }
