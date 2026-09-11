@@ -1,4 +1,4 @@
-﻿/* eslint-disable */
+/* eslint-disable */
 
 // @ts-nocheck
 
@@ -14,24 +14,21 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as RoomsRouteImport } from './routes/rooms'
 import { Route as RoomRoomIdRouteImport } from './routes/room.$roomId'
 
-const RoomsRoute = RoomsRouteImport.update({
-  id: '/rooms',
-  path: '/rooms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoomsRoute = RoomsRouteImport.update({
+  id: '/rooms',
+  path: '/rooms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RoomRoomIdRoute = RoomRoomIdRouteImport.update({
   id: '/room/$roomId',
   path: '/room/$roomId',
@@ -44,14 +41,12 @@ export interface FileRoutesByFullPath {
   '/rooms': typeof RoomsRoute
   '/room/$roomId': typeof RoomRoomIdRoute
 }
-
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/rooms': typeof RoomsRoute
   '/room/$roomId': typeof RoomRoomIdRoute
 }
-
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
@@ -59,7 +54,6 @@ export interface FileRoutesById {
   '/rooms': typeof RoomsRoute
   '/room/$roomId': typeof RoomRoomIdRoute
 }
-
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths: '/' | '/auth' | '/rooms' | '/room/$roomId'
@@ -68,24 +62,12 @@ export interface FileRouteTypes {
   id: '__root__' | '/' | '/auth' | '/rooms' | '/room/$roomId'
   fileRoutesById: FileRoutesById
 }
-
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   RoomsRoute: typeof RoomsRoute
   RoomRoomIdRoute: typeof RoomRoomIdRoute
 }
-
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
-  RoomsRoute: RoomsRoute,
-  RoomRoomIdRoute: RoomRoomIdRoute,
-}
-
-export const routeTree = rootRouteImport
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
@@ -119,6 +101,16 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
+  RoomsRoute: RoomsRoute,
+  RoomRoomIdRoute: RoomRoomIdRoute,
+}
+export const routeTree = rootRouteImport
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
 import type { startInstance } from './start.ts'

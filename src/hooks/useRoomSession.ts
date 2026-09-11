@@ -86,11 +86,13 @@ export function useRoomSession(roomId: string, me: Me | null) {
       setVideoDevices(vDevs);
       setAudioDevices(aDevs);
 
-      if (vDevs.length > 0 && !selectedVideoDeviceId) {
-        setSelectedVideoDeviceId(vDevs[0].deviceId);
+      const firstVideo = vDevs[0];
+      const firstAudio = aDevs[0];
+      if (firstVideo && !selectedVideoDeviceId) {
+        setSelectedVideoDeviceId(firstVideo.deviceId);
       }
-      if (aDevs.length > 0 && !selectedAudioDeviceId) {
-        setSelectedAudioDeviceId(aDevs[0].deviceId);
+      if (firstAudio && !selectedAudioDeviceId) {
+        setSelectedAudioDeviceId(firstAudio.deviceId);
       }
     } catch (e) {
       console.warn("Não foi possível listar dispositivos de mídia:", e);
@@ -99,18 +101,20 @@ export function useRoomSession(roomId: string, me: Me | null) {
 
   useEffect(() => {
     void refreshDevices();
-    if (typeof navigator !== "undefined" && navigator.mediaDevices?.addEventListener) {
-      navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
-      return () => {
-        navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
-      };
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.addEventListener) {
+      return undefined;
     }
+    navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
+    return () => {
+      navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
+    };
   }, [refreshDevices]);
 
   /* ---------- presence ---------- */
   useEffect(() => {
     if (!me || !roomId) return;
-    const channelName = `room-presence-${roomId}-${me.id}-${Math.random().toString(36).slice(2, 7)}`;
+    // Canal compartilhado por sala: todos na mesma sala precisam do MESMO nome de canal
+    const channelName = `room-presence-${roomId}`;
     const channel = supabase.channel(channelName, {
       config: { presence: { key: me.id } },
     });
