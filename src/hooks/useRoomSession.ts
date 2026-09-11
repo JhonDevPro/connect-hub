@@ -110,7 +110,8 @@ export function useRoomSession(roomId: string, me: Me | null) {
   /* ---------- presence ---------- */
   useEffect(() => {
     if (!me || !roomId) return;
-    const channelName = `room-presence-${roomId}-${me.id}-${Math.random().toString(36).slice(2, 7)}`;
+    // Canal compartilhado por sala: todos na mesma sala precisam do MESMO nome de canal
+    const channelName = `room-presence-${roomId}`;
     const channel = supabase.channel(channelName, {
       config: { presence: { key: me.id } },
     });

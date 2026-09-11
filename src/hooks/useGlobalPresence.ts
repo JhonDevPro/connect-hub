@@ -78,7 +78,8 @@ export function useGlobalPresence(currentProfile: SessionProfile | null) {
     if (!currentProfile?.id) return;
 
     let active = true;
-    const channelId = `presence-${currentProfile.id}-${Math.random().toString(36).slice(2, 7)}`;
+    // Canal global único para toda a equipe (nome igual para todos)
+    const channelId = "team-presence-global";
     const channel = supabase.channel(channelId, {
       config: { presence: { key: currentProfile.id } },
     });
