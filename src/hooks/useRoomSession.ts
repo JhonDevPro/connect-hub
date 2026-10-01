@@ -344,7 +344,7 @@ export function useRoomSession(roomId: string, me: Me | null) {
   const join = useCallback(async () => {
     if (inCall || connecting) return;
     const othersInCall = members.filter((m) => m.peer_id && m.user_id !== me?.id).length;
-    if (othersInCall >= MAX_PARTICIPANTS) {
+    if (othersInCall >= MAX_PARTICIPANTS - 1) {
       setError(`A chamada está cheia (máximo de ${MAX_PARTICIPANTS} pessoas).`);
       return;
     }
