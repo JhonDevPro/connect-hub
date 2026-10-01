@@ -25,7 +25,7 @@ import { RoomSidebar, useRooms } from "@/components/RoomSidebar";
 import { VideoTile } from "@/components/VideoTile";
 import { ChatPanel } from "@/components/ChatPanel";
 import { MembersList } from "@/components/MembersList";
-import { useRoomSession } from "@/hooks/useRoomSession";
+import { useRoomSession, MAX_PARTICIPANTS } from "@/hooks/useRoomSession";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { useGlobalPresence } from "@/hooks/useGlobalPresence";
 import { Button } from "@/components/ui/button";

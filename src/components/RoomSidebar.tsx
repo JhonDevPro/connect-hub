@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Hash, LogOut, Plus, Radio, Users, Mail, Loader2 } from "lucide-react";
+import { Hash, LogOut, Plus, Radio, Users, Mail, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -93,6 +93,21 @@ export function RoomSidebar({
     },
   });
 
+  const deleteRoom = useMutation({
+    mutationFn: async (id: string) => {
+      const { error, count } = await supabase.from("rooms").delete({ count: "exact" }).eq("id", id);
+      if (error) throw error;
+      if (!count) throw new Error("Não foi possível excluir a sala.");
+      return id;
+    },
+    onSuccess: (id) => {
+      toast.success("Sala excluída");
+      void queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      if (id === activeRoomId) void navigate({ to: "/rooms" });
+    },
+    onError: (e: Error) => toast.error(e.message || "Erro ao excluir sala"),
+  });
+
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
@@ -168,20 +183,35 @@ export function RoomSidebar({
           </p>
         ) : (
           rooms.data?.map((room) => (
-            <Link
-              key={room.id}
-              to="/room/$roomId"
-              params={{ roomId: room.id }}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
-                room.id === activeRoomId
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:bg-surface hover:text-foreground"
-              )}
-            >
-              <Hash className="size-4 shrink-0 opacity-70" />
-              <span className="truncate">{room.name}</span>
-            </Link>
+            <div key={room.id} className="group relative">
+              <Link
+                to="/room/$roomId"
+                params={{ roomId: room.id }}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-2.5 py-2 pr-8 text-sm font-medium transition-colors",
+                  room.id === activeRoomId
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:bg-surface hover:text-foreground"
+                )}
+              >
+                <Hash className="size-4 shrink-0 opacity-70" />
+                <span className="truncate">{room.name}</span>
+              </Link>
+              <button
+                type="button"
+                aria-label={`Excluir sala ${room.name}`}
+                title="Excluir sala"
+                disabled={deleteRoom.isPending}
+                onClick={() => {
+                  if (window.confirm(`Excluir a sala "${room.name}"? As mensagens e arquivos dela também serão apagados.`)) {
+                    deleteRoom.mutate(room.id);
+                  }
+                }}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/15 hover:text-destructive focus:opacity-100 group-hover:opacity-100"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
           ))
         )}
       </nav>
