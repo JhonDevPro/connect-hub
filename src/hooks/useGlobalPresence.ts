@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { SessionProfile } from "./useSessionProfile";
 
@@ -10,10 +10,70 @@ export type TeamMember = {
   isOnline: boolean;
 };
 
+type PresenceInfo = { email: string | null; name: string; avatar: string | null };
+type PresencePayload = { user_id: string; name: string; email: string | null; avatar: string | null };
+type Listener = (data: Map<string, PresenceInfo>) => void;
+
+// Canal único compartilhado: o Supabase não permite dois canais com o mesmo nome
+let sharedChannel: ReturnType<typeof supabase.channel> | null = null;
+let sharedKey: string | null = null;
+let lastData = new Map<string, PresenceInfo>();
+const listeners = new Set<Listener>();
+
+function subscribeGlobalPresence(me: PresencePayload, listener: Listener) {
+  listeners.add(listener);
+
+  if (sharedChannel && sharedKey !== me.user_id) {
+    void supabase.removeChannel(sharedChannel);
+    sharedChannel = null;
+  }
+
+  if (!sharedChannel) {
+    sharedKey = me.user_id;
+    const channel = supabase.channel("team-presence-global", {
+      config: { presence: { key: me.user_id } },
+    });
+    sharedChannel = channel;
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState<PresencePayload>();
+        const map = new Map<string, PresenceInfo>();
+        for (const [key, entries] of Object.entries(state)) {
+          const entry = entries[entries.length - 1];
+          if (entry) {
+            map.set(entry.user_id || key, {
+              email: entry.email || null,
+              name: entry.name || "Membro",
+              avatar: entry.avatar || null,
+            });
+          }
+        }
+        lastData = map;
+        listeners.forEach((l) => l(map));
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") void channel.track(me);
+      });
+  } else {
+    listener(lastData);
+    void sharedChannel.track(me);
+  }
+
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && sharedChannel) {
+      const ch = sharedChannel;
+      sharedChannel = null;
+      sharedKey = null;
+      lastData = new Map();
+      void supabase.removeChannel(ch);
+    }
+  };
+}
+
 export function useGlobalPresence(currentProfile: SessionProfile | null) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // 1. Carrega todos os perfis cadastrados no sistema
   useEffect(() => {
@@ -73,104 +133,63 @@ export function useGlobalPresence(currentProfile: SessionProfile | null) {
     };
   }, [currentProfile?.id, currentProfile?.name, currentProfile?.email]);
 
-  // 2. Canal de presença global em tempo real (quem está online agora)
+  // 2. Canal de presença global compartilhado (um único canal para todos os componentes)
   useEffect(() => {
     if (!currentProfile?.id) return;
 
-    let active = true;
-    // Canal global único para toda a equipe (nome igual para todos)
-    const channelId = "team-presence-global";
-    const channel = supabase.channel(channelId, {
-      config: { presence: { key: currentProfile.id } },
-    });
-    channelRef.current = channel;
+    const onSync = (presenceDataMap: Map<string, PresenceInfo>) => {
+      const onlineIds = new Set(presenceDataMap.keys());
+      setOnlineUserIds(onlineIds);
 
-    channel
-      .on("presence", { event: "sync" }, () => {
-        if (!active) return;
-        const state = channel.presenceState<{
-          user_id: string;
-          name: string;
-          email: string | null;
-          avatar: string | null;
-        }>();
+      setMembers((prev) => {
+        const map = new Map<string, TeamMember>();
+        prev.forEach((m) => map.set(m.id, { ...m, isOnline: onlineIds.has(m.id) }));
 
-        const onlineIds = new Set<string>();
-        const presenceDataMap = new Map<string, { email: string | null; name: string; avatar: string | null }>();
-
-        for (const [key, entries] of Object.entries(state)) {
-          const entry = entries[entries.length - 1];
-          if (entry) {
-            const uid = entry.user_id || key;
-            onlineIds.add(uid);
-            presenceDataMap.set(uid, {
-              email: entry.email || null,
-              name: entry.name || "Membro",
-              avatar: entry.avatar || null,
-            });
-          }
-        }
-
-        setOnlineUserIds(onlineIds);
-
-        setMembers((prev) => {
-          const map = new Map<string, TeamMember>();
-          prev.forEach((m) => map.set(m.id, { ...m, isOnline: onlineIds.has(m.id) }));
-
-          // Adiciona quem estiver online no canal
-          onlineIds.forEach((uid) => {
-            const onlineData = presenceDataMap.get(uid);
-            const existing = map.get(uid);
-            if (existing) {
-              existing.isOnline = true;
-              if (onlineData?.email && !existing.email) existing.email = onlineData.email;
-              if (onlineData?.name && existing.name === "Membro") existing.name = onlineData.name;
-              if (onlineData?.avatar && !existing.avatar) existing.avatar = onlineData.avatar;
-            } else if (onlineData) {
-              map.set(uid, {
-                id: uid,
-                name: onlineData.name || "Membro",
-                email: onlineData.email,
-                avatar: onlineData.avatar,
-                isOnline: true,
-              });
-            }
-          });
-
-          if (currentProfile && !map.has(currentProfile.id)) {
-            map.set(currentProfile.id, {
-              id: currentProfile.id,
-              name: currentProfile.name,
-              email: currentProfile.email,
-              avatar: currentProfile.avatar,
+        onlineIds.forEach((uid) => {
+          const onlineData = presenceDataMap.get(uid);
+          const existing = map.get(uid);
+          if (existing) {
+            existing.isOnline = true;
+            if (onlineData?.email && !existing.email) existing.email = onlineData.email;
+            if (onlineData?.name && existing.name === "Membro") existing.name = onlineData.name;
+            if (onlineData?.avatar && !existing.avatar) existing.avatar = onlineData.avatar;
+          } else if (onlineData) {
+            map.set(uid, {
+              id: uid,
+              name: onlineData.name || "Membro",
+              email: onlineData.email,
+              avatar: onlineData.avatar,
               isOnline: true,
             });
           }
-
-          return Array.from(map.values()).sort((a, b) => {
-            if (a.isOnline === b.isOnline) return a.name.localeCompare(b.name);
-            return a.isOnline ? -1 : 1;
-          });
         });
-      })
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED" && active) {
-          void channel.track({
-            user_id: currentProfile.id,
+
+        if (currentProfile && !map.has(currentProfile.id)) {
+          map.set(currentProfile.id, {
+            id: currentProfile.id,
             name: currentProfile.name,
             email: currentProfile.email,
             avatar: currentProfile.avatar,
+            isOnline: true,
           });
         }
-      });
 
-    return () => {
-      active = false;
-      channelRef.current = null;
-      try {
-        void supabase.removeChannel(channel);
-      } catch {}
+        return Array.from(map.values()).sort((a, b) => {
+          if (a.isOnline === b.isOnline) return a.name.localeCompare(b.name);
+          return a.isOnline ? -1 : 1;
+        });
+      });
     };
+
+    return subscribeGlobalPresence(
+      {
+        user_id: currentProfile.id,
+        name: currentProfile.name,
+        email: currentProfile.email,
+        avatar: currentProfile.avatar,
+      },
+      onSync,
+    );
   }, [currentProfile?.id, currentProfile?.name, currentProfile?.email, currentProfile?.avatar]);
 
   return { members, onlineCount: onlineUserIds.size };
