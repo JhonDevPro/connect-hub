@@ -230,7 +230,7 @@ export function RoomSidebar({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-2 space-y-1">
-        {members.map((member) => (
+        {members.filter((m) => m.isOnline).map((member) => (
           <div
             key={member.id}
             className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs hover:bg-surface/60 transition-colors"
