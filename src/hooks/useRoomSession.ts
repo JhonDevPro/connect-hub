@@ -31,6 +31,8 @@ const ICE = {
   ],
 };
 
+export const MAX_PARTICIPANTS = 10;
+
 export function useRoomSession(roomId: string, me: Me | null) {
   const [members, setMembers] = useState<Member[]>([]);
   const [inCall, setInCall] = useState(false);
@@ -341,6 +343,11 @@ export function useRoomSession(roomId: string, me: Me | null) {
 
   const join = useCallback(async () => {
     if (inCall || connecting) return;
+    const othersInCall = members.filter((m) => m.peer_id && m.user_id !== me?.id).length;
+    if (othersInCall >= MAX_PARTICIPANTS) {
+      setError(`A chamada está cheia (máximo de ${MAX_PARTICIPANTS} pessoas).`);
+      return;
+    }
     setConnecting(true);
     setError(null);
     try {
@@ -386,7 +393,7 @@ export function useRoomSession(roomId: string, me: Me | null) {
     } finally {
       setConnecting(false);
     }
-  }, [inCall, connecting, micOn, pushToTalk, attachCall, acquireUserMedia, selectedVideoDeviceId, selectedAudioDeviceId, refreshDevices]);
+  }, [inCall, connecting, micOn, pushToTalk, attachCall, acquireUserMedia, selectedVideoDeviceId, selectedAudioDeviceId, refreshDevices, members, me?.id]);
 
   const leave = useCallback(() => {
     callsRef.current.forEach((c) => c.close());
