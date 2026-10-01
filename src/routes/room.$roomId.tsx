@@ -25,7 +25,7 @@ import { RoomSidebar, useRooms } from "@/components/RoomSidebar";
 import { VideoTile } from "@/components/VideoTile";
 import { ChatPanel } from "@/components/ChatPanel";
 import { MembersList } from "@/components/MembersList";
-import { useRoomSession } from "@/hooks/useRoomSession";
+import { useRoomSession, MAX_PARTICIPANTS } from "@/hooks/useRoomSession";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { useGlobalPresence } from "@/hooks/useGlobalPresence";
 import { Button } from "@/components/ui/button";
@@ -365,13 +365,18 @@ function RoomView() {
           ) : (
             /* Grade Responsiva de Vídeos para Tablets e Notebooks */
             <div className="flex flex-1 flex-col min-h-0">
+              <div className="px-1 pb-1 text-right text-[11px] text-muted-foreground">
+                {totalParticipants} / {MAX_PARTICIPANTS} na chamada
+              </div>
               <div
                 className={cn(
-                  "grid flex-1 gap-2 sm:gap-3 overflow-y-auto p-1 items-center justify-center",
+                  "grid flex-1 gap-2 sm:gap-3 overflow-y-auto p-1 content-center",
                   totalParticipants === 1 && "grid-cols-1 max-w-4xl mx-auto w-full",
                   totalParticipants === 2 && "grid-cols-1 sm:grid-cols-2",
-                  totalParticipants >= 3 && totalParticipants <= 4 && "grid-cols-1 sm:grid-cols-2",
-                  totalParticipants >= 5 && "grid-cols-2 lg:grid-cols-3"
+                  totalParticipants >= 3 && totalParticipants <= 4 && "grid-cols-2",
+                  totalParticipants >= 5 && totalParticipants <= 6 && "grid-cols-2 lg:grid-cols-3",
+                  totalParticipants >= 7 && totalParticipants <= 9 && "grid-cols-2 md:grid-cols-3",
+                  totalParticipants >= 10 && "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
                 )}
               >
                 {/* Meu Vídeo Local */}
@@ -386,14 +391,14 @@ function RoomView() {
 
                 {/* Vídeos Remotos com Slider de Volume Individual */}
                 {remotes.map((remote) => {
-                  const memberMatch = allTeamMembers.find((m) => m.id === remote.peerId);
+                  const m = session.memberByPeer.get(remote.peerId);
                   return (
                     <VideoTile
                       key={remote.peerId}
                       stream={remote.stream}
-                      name={memberMatch?.name || `Participante (${remote.peerId.slice(0, 4)})`}
-                      camOn={true}
-                      micOn={true}
+                      name={m?.name || `Participante (${remote.peerId.slice(0, 4)})`}
+                      camOn={m?.cam_on ?? true}
+                      micOn={m?.mic_on ?? true}
                       deafened={deafened}
                     />
                   );
