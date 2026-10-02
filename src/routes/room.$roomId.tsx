@@ -72,10 +72,13 @@ function RoomView() {
   const currentRoom = roomsQuery.data?.find((r) => r.id === roomId);
 
   // Sessão da chamada de vídeo P2P com identificação de hardware do tablet
-  const session = useRoomSession(roomId, profile);
+  const roomAccessGranted = !!admin.data || !!access.data?.has(roomId);
+  const session = useRoomSession(roomId, profile, roomAccessGranted);
 
   // Presença global de membros do time (verde = online, vermelho = offline)
   const { members: allTeamMembers } = useGlobalPresence(profile);
+  const roomMemberIds = new Set(session.members.map((member) => member.user_id));
+  const roomTeamMembers = allTeamMembers.filter((member) => roomMemberIds.has(member.id));
 
   if (profileLoading) {
     return (
@@ -271,7 +274,7 @@ function RoomView() {
             >
               <Users className="size-4" />
               <span className="hidden md:inline">
-                Membros ({allTeamMembers.filter((m) => m.isOnline).length} on)
+                 Membros ({roomTeamMembers.filter((m) => m.isOnline).length} on)
               </span>
             </Button>
           </div>
@@ -560,7 +563,7 @@ function RoomView() {
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              Membros ({allTeamMembers.length})
+               Membros ({roomTeamMembers.length})
             </button>
             <Button
               variant="ghost"
@@ -579,7 +582,7 @@ function RoomView() {
             )}
             {activeTab === "members" && (
               <div className="p-4 overflow-y-auto h-full">
-                <MembersList members={allTeamMembers} />
+                 <MembersList members={roomTeamMembers} title="Membros da Sala" />
               </div>
             )}
           </div>
