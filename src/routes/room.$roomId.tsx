@@ -291,7 +291,7 @@ function RoomView() {
             <div className="pointer-events-none absolute inset-2 z-30 rounded-2xl border-2 border-live shadow-[inset_0_0_36px_var(--color-live)] animate-pulse sm:inset-4">
               <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full border border-live bg-surface px-4 py-2 text-sm font-semibold text-foreground shadow-panel">
                 <BellRing className="size-4 text-live" />
-                <span className="whitespace-nowrap">{attentionAlert.fromName} chamou sua atenção</span>
+                <span className="max-w-[70vw] truncate">{attentionAlert.fromName} chamou sua atenção</span>
               </div>
             </div>
           )}
