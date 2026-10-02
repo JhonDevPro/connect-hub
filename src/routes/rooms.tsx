@@ -46,7 +46,7 @@ function RoomsPage() {
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
       {/* Sidebar para desktop */}
       <div className="hidden md:block h-full shrink-0">
-        <RoomSidebar profile={profile} isAdmin={admin.data} onOpenAdmin={() => setAdminOpen(true)} />
+        <RoomSidebar profile={profile} isAdmin={!!admin.data} onOpenAdmin={() => setAdminOpen(true)} />
       </div>
 
       {/* Drawer móvel para tablets e celulares */}
@@ -68,7 +68,7 @@ function RoomsPage() {
               </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <RoomSidebar profile={profile} isAdmin={admin.data} onOpenAdmin={() => setAdminOpen(true)} />
+              <RoomSidebar profile={profile} isAdmin={!!admin.data} onOpenAdmin={() => setAdminOpen(true)} />
             </div>
           </div>
         </div>
