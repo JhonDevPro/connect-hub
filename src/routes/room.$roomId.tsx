@@ -25,6 +25,7 @@ import { RoomSidebar, useRooms } from "@/components/RoomSidebar";
 import { VideoTile } from "@/components/VideoTile";
 import { ChatPanel } from "@/components/ChatPanel";
 import { MembersList } from "@/components/MembersList";
+import { AttentionMenu } from "@/components/AttentionMenu";
 import { useRoomSession, MAX_PARTICIPANTS } from "@/hooks/useRoomSession";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { useGlobalPresence } from "@/hooks/useGlobalPresence";
@@ -146,6 +147,9 @@ function RoomView() {
     pushToTalk,
     setPushToTalk,
     pttActive,
+    attentionAlert,
+    attentionCooldown,
+    sendAttention,
     videoDevices,
     audioDevices,
     selectedVideoDeviceId,
@@ -282,6 +286,15 @@ function RoomView() {
 
         {/* Palco de Vídeo */}
         <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden p-2 sm:p-4 bg-background">
+          {attentionAlert && (
+            <div className="pointer-events-none absolute inset-2 z-30 rounded-2xl border-2 border-live shadow-[inset_0_0_36px_var(--color-live)] animate-pulse sm:inset-4">
+              <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full border border-live bg-surface px-4 py-2 text-sm font-semibold text-foreground shadow-panel">
+                <BellRing className="size-4 text-live" />
+                <span className="whitespace-nowrap">{attentionAlert.fromName} chamou sua atenção</span>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="mb-3 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               <AlertCircle className="size-4 shrink-0" />
@@ -510,6 +523,13 @@ function RoomView() {
                 </Button>
 
                 <div className="h-6 w-px bg-border mx-0.5 sm:mx-1 hidden sm:block" />
+
+                <AttentionMenu
+                  members={session.members}
+                  currentUserId={profile.id}
+                  disabled={attentionCooldown}
+                  onSend={(targetUserId) => void sendAttention(targetUserId)}
+                />
 
                 {/* Switch Push-to-Talk (escondido em telas muito estreitas) */}
                 <div className="hidden sm:flex items-center gap-2 px-2 py-1 rounded-xl bg-background/60 border border-border/50">
