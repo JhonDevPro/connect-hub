@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Video, Lock, Network, Waves, Home, MonitorSpeaker } from "lucide-react";
 import type { Room } from "@/components/RoomSidebar";
 import { RoomPasswordDialog } from "@/components/RoomPasswordDialog";
+import { Button } from "@/components/ui/button";
 import type { Layer } from "@/hooks/useAccess";
 import { cn } from "@/lib/utils";
 
@@ -87,11 +88,12 @@ export function AccessDiagram({
           const Icon = LAYER_GEO[layer].Icon;
           const unlocked = isAdmin || access.has(room.id);
           return (
-            <button
+            <Button
               key={room.id}
               type="button"
+              variant="ghost"
               onClick={() => open(room)}
-              className="group absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 focus:outline-none"
+              className="group absolute h-auto -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 p-0 hover:bg-transparent focus:outline-none"
               style={{ left: `${x}%`, top: `${y}%` }}
               title={LAYER_GEO[layer].label}
             >
@@ -110,7 +112,7 @@ export function AccessDiagram({
               <span className="max-w-[140px] rounded bg-background/80 px-1 text-center text-[10px] sm:text-xs font-semibold uppercase text-primary">
                 {room.name}
               </span>
-            </button>
+            </Button>
           );
         })}
       </div>

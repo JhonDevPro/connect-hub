@@ -80,14 +80,14 @@ export function RoomSidebar({
           <p className="px-3 py-2 text-xs text-muted-foreground">Carregando salas...</p>
         ) : rooms.data?.length === 0 ? (
           <p className="px-3 py-2 text-xs text-muted-foreground">
-            Nenhuma sala criada. Clique em + acima.
+            Nenhuma sala criada.
           </p>
         ) : (
           rooms.data?.map((room) => (
             <div key={room.id} className="relative">
               <Link
-                to="/room/$roomId"
-                params={{ roomId: room.id }}
+                to={room.id === activeRoomId ? "/room/$roomId" : "/rooms"}
+                params={room.id === activeRoomId ? { roomId: room.id } : undefined}
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
                   room.id === activeRoomId
