@@ -33,7 +33,7 @@ const ICE = {
 
 export const MAX_PARTICIPANTS = 10;
 
-export function useRoomSession(roomId: string, me: Me | null) {
+export function useRoomSession(roomId: string, me: Me | null, accessGranted = true) {
   const [members, setMembers] = useState<Member[]>([]);
   const [inCall, setInCall] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -114,7 +114,7 @@ export function useRoomSession(roomId: string, me: Me | null) {
 
   /* ---------- presence ---------- */
   useEffect(() => {
-    if (!me || !roomId) return;
+    if (!me || !roomId || !accessGranted) return;
     // Canal compartilhado por sala: todos na mesma sala precisam do MESMO nome de canal
     const channelName = `room-presence-${roomId}`;
     const channel = supabase.channel(channelName, {
@@ -151,7 +151,7 @@ export function useRoomSession(roomId: string, me: Me | null) {
         void supabase.removeChannel(channel);
       } catch {}
     };
-  }, [roomId, me?.id, me?.name, me?.avatar]);
+  }, [roomId, me?.id, me?.name, me?.avatar, accessGranted]);
 
   // keep presence payload in sync with call state
   useEffect(() => {

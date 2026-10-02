@@ -55,7 +55,7 @@ export function AdminPanel({ open, onOpenChange, userId }: { open: boolean; onOp
       setForm({ name: "", description: "", password: "", layer: form.layer });
       refresh();
     },
-    onError: (e: Error) => toast.error(e instanceof z.ZodError ? e.issues[0].message : e.message),
+    onError: (e: Error) => toast.error(e instanceof z.ZodError ? (e.issues[0]?.message ?? "Dados inválidos") : e.message),
   });
 
   const changePw = useMutation({

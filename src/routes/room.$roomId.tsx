@@ -32,9 +32,20 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useIsAdmin, useRoomAccessList } from "@/hooks/useAccess";
 
 export const Route = createFileRoute("/room/$roomId")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Sala protegida — Nexo Hub" },
+      { name: "description", content: "Videochamada P2P, chat e membros de uma sala protegida." },
+      { property: "og:title", content: "Sala protegida — Nexo Hub" },
+      { property: "og:description", content: "Comunicação privada da equipe com vídeo P2P." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: RoomView,
 });
 
@@ -44,6 +55,8 @@ function RoomView() {
   const navigate = useNavigate();
   const { profile, loading: profileLoading } = useSessionProfile();
   const roomsQuery = useRooms();
+  const admin = useIsAdmin(profile?.id);
+  const access = useRoomAccessList(profile?.id);
 
   const [activeTab, setActiveTab] = useState<"chat" | "members">("chat");
   const [showSidePanel, setShowSidePanel] = useState(false);
@@ -59,10 +72,13 @@ function RoomView() {
   const currentRoom = roomsQuery.data?.find((r) => r.id === roomId);
 
   // Sessão da chamada de vídeo P2P com identificação de hardware do tablet
-  const session = useRoomSession(roomId, profile);
+  const roomAccessGranted = !!admin.data || !!access.data?.has(roomId);
+  const session = useRoomSession(roomId, profile, roomAccessGranted);
 
   // Presença global de membros do time (verde = online, vermelho = offline)
   const { members: allTeamMembers } = useGlobalPresence(profile);
+  const roomMemberIds = new Set(session.members.map((member) => member.user_id));
+  const roomTeamMembers = allTeamMembers.filter((member) => roomMemberIds.has(member.id));
 
   if (profileLoading) {
     return (
@@ -92,6 +108,23 @@ function RoomView() {
           <Button asChild className="w-full">
             <Link to="/auth">Fazer login / Criar conta</Link>
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (admin.isLoading || access.isLoading) {
+    return <div className="flex h-screen items-center justify-center bg-background"><Loader2 className="size-6 animate-spin text-primary" /></div>;
+  }
+
+  if (!admin.data && !access.data?.has(roomId)) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background p-6 text-center">
+        <div className="max-w-sm space-y-4">
+          <AlertCircle className="mx-auto size-9 text-primary" />
+          <h1 className="text-xl font-bold">Acesso à sala necessário</h1>
+          <p className="text-sm text-muted-foreground">Abra esta sala pelo mapa e informe a senha.</p>
+          <Button asChild><Link to="/rooms">Voltar ao mapa</Link></Button>
         </div>
       </div>
     );
@@ -241,7 +274,7 @@ function RoomView() {
             >
               <Users className="size-4" />
               <span className="hidden md:inline">
-                Membros ({allTeamMembers.filter((m) => m.isOnline).length} on)
+                 Membros ({roomTeamMembers.filter((m) => m.isOnline).length} on)
               </span>
             </Button>
           </div>
@@ -530,7 +563,7 @@ function RoomView() {
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
-              Membros ({allTeamMembers.length})
+               Membros ({roomTeamMembers.length})
             </button>
             <Button
               variant="ghost"
@@ -549,7 +582,7 @@ function RoomView() {
             )}
             {activeTab === "members" && (
               <div className="p-4 overflow-y-auto h-full">
-                <MembersList members={allTeamMembers} />
+                 <MembersList members={roomTeamMembers} title="Membros da Sala" />
               </div>
             )}
           </div>
