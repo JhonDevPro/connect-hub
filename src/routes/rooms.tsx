@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Radio, Menu, X, Settings } from "lucide-react";
+import { Radio, Menu, Plus, Settings, X } from "lucide-react";
 import { RoomSidebar, useRooms } from "@/components/RoomSidebar";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ function RoomsPage() {
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
       {/* Sidebar para desktop */}
       <div className="hidden md:block h-full shrink-0">
-        <RoomSidebar profile={profile} isAdmin={!!admin.data} onOpenAdmin={() => setAdminOpen(true)} />
+        <RoomSidebar profile={profile} />
       </div>
 
       {/* Drawer móvel para tablets e celulares */}
@@ -68,7 +68,7 @@ function RoomsPage() {
               </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <RoomSidebar profile={profile} isAdmin={!!admin.data} onOpenAdmin={() => setAdminOpen(true)} />
+              <RoomSidebar profile={profile} />
             </div>
           </div>
         </div>
@@ -84,13 +84,18 @@ function RoomsPage() {
             onClick={() => setMobileMenuOpen(true)}
           >
             <Menu className="size-4" />
-            <span>Salas e membros</span>
+            <span>Membros e conta</span>
           </Button>
         </div>
         {admin.data && (
-          <Button variant="outline" size="sm" className="absolute right-4 top-4 z-10 gap-2" onClick={() => setAdminOpen(true)}>
-            <Settings className="size-4" /> Administração
-          </Button>
+          <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+            <Button size="sm" className="gap-2 shadow-glow" onClick={() => setAdminOpen(true)}>
+              <Plus className="size-4" /> Criar sala
+            </Button>
+            <Button variant="outline" size="icon" aria-label="Gerenciar salas" title="Gerenciar salas" onClick={() => setAdminOpen(true)}>
+              <Settings className="size-4" />
+            </Button>
+          </div>
         )}
         <AccessDiagram rooms={rooms.data ?? []} access={access.data ?? new Set()} isAdmin={!!admin.data} />
       </main>

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Hash, LogOut, Radio, Users, Mail, Settings } from "lucide-react";
+import { LogOut, Radio, Users, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,17 +27,10 @@ export function useRooms() {
 }
 
 export function RoomSidebar({
-  activeRoomId,
   profile,
-  isAdmin = false,
-  onOpenAdmin,
 }: {
-  activeRoomId?: string;
   profile: SessionProfile | null;
-  isAdmin?: boolean;
-  onOpenAdmin?: () => void;
 }) {
-  const rooms = useRooms();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -63,56 +56,8 @@ export function RoomSidebar({
         </Link>
       </div>
 
-      {/* Lista de Salas */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Salas de Chamada
-        </span>
-        {isAdmin && onOpenAdmin && (
-          <Button variant="ghost" size="icon" className="size-7" aria-label="Painel administrativo" onClick={onOpenAdmin} title="Painel administrativo">
-            <Settings className="size-4" />
-          </Button>
-        )}
-      </div>
-
-      <nav className="space-y-0.5 overflow-y-auto px-2 max-h-48 scrollbar-thin">
-        {rooms.isLoading ? (
-          <p className="px-3 py-2 text-xs text-muted-foreground">Carregando salas...</p>
-        ) : rooms.data?.length === 0 ? (
-          <p className="px-3 py-2 text-xs text-muted-foreground">
-            Nenhuma sala criada.
-          </p>
-        ) : (
-          rooms.data?.map((room) => (
-            <div key={room.id} className="relative">
-              {room.id === activeRoomId ? (
-                <Link
-                  to="/room/$roomId"
-                  params={{ roomId: room.id }}
-                  className="flex items-center gap-2 rounded-lg bg-primary/15 px-2.5 py-2 text-sm font-medium text-primary transition-colors"
-                >
-                  <Hash className="size-4 shrink-0 opacity-70" />
-                  <span className="truncate">{room.name}</span>
-                </Link>
-              ) : (
-                <Link
-                  to="/rooms"
-                  className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
-                >
-                  <Hash className="size-4 shrink-0 opacity-70" />
-                  <span className="truncate">{room.name}</span>
-                </Link>
-              )}
-            </div>
-          ))
-        )}
-      </nav>
-
-      {/* Divisor */}
-      <div className="my-3 mx-4 border-t border-sidebar-border/40" />
-
       {/* Lista de Membros Online/Offline */}
-      <div className="flex items-center justify-between px-4 pb-2">
+      <div className="flex items-center justify-between px-4 pb-2 pt-4">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           <Users className="size-3.5" /> Membros
         </span>

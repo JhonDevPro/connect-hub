@@ -80,8 +80,8 @@ export function AdminPanel({ open, onOpenChange, userId }: { open: boolean; onOp
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Painel Administrativo</DialogTitle>
-          <DialogDescription>Crie os círculos (salas), defina senhas e gerencie o acesso.</DialogDescription>
+          <DialogTitle>Criar e gerenciar salas</DialogTitle>
+          <DialogDescription>Crie um círculo com senha ou gerencie as salas existentes.</DialogDescription>
         </DialogHeader>
 
         <form
@@ -99,7 +99,7 @@ export function AdminPanel({ open, onOpenChange, userId }: { open: boolean; onOp
             {(Object.keys(LAYERS) as Layer[]).map((l) => <option key={l} value={l}>{LAYERS[l]}</option>)}
           </select>
           <Button type="submit" className="sm:col-span-2" disabled={create.isPending}>
-            {create.isPending ? <Loader2 className="size-4 animate-spin" /> : "Criar sala"}
+            {create.isPending ? <Loader2 className="size-4 animate-spin" /> : "Criar sala com senha"}
           </Button>
         </form>
 
