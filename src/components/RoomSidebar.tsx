@@ -85,19 +85,24 @@ export function RoomSidebar({
         ) : (
           rooms.data?.map((room) => (
             <div key={room.id} className="relative">
-              <Link
-                to={room.id === activeRoomId ? "/room/$roomId" : "/rooms"}
-                params={room.id === activeRoomId ? { roomId: room.id } : undefined}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
-                  room.id === activeRoomId
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:bg-surface hover:text-foreground"
-                )}
-              >
-                <Hash className="size-4 shrink-0 opacity-70" />
-                <span className="truncate">{room.name}</span>
-              </Link>
+              {room.id === activeRoomId ? (
+                <Link
+                  to="/room/$roomId"
+                  params={{ roomId: room.id }}
+                  className="flex items-center gap-2 rounded-lg bg-primary/15 px-2.5 py-2 text-sm font-medium text-primary transition-colors"
+                >
+                  <Hash className="size-4 shrink-0 opacity-70" />
+                  <span className="truncate">{room.name}</span>
+                </Link>
+              ) : (
+                <Link
+                  to="/rooms"
+                  className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+                >
+                  <Hash className="size-4 shrink-0 opacity-70" />
+                  <span className="truncate">{room.name}</span>
+                </Link>
+              )}
             </div>
           ))
         )}
