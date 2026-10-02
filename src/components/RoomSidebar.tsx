@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type { SessionProfile } from "@/hooks/useSessionProfile";
 import { useGlobalPresence } from "@/hooks/useGlobalPresence";
 
-export type Room = { id: string; name: string; description: string | null; layer: string };
+export type Room = { id: string; name: string; description: string | null; layer: string; icon: string };
 
 export function useRooms() {
   return useQuery({
@@ -15,7 +15,7 @@ export function useRooms() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rooms")
-        .select("id, name, description, layer")
+        .select("id, name, description, layer, icon")
         .order("created_at", { ascending: true });
       if (error) {
         console.error("Erro ao carregar salas:", error);

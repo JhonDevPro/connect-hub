@@ -139,6 +139,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          icon: string
           id: string
           layer: string
           name: string
@@ -147,6 +148,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          icon?: string
           id?: string
           layer?: string
           name: string
@@ -155,6 +157,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          icon?: string
           id?: string
           layer?: string
           name?: string

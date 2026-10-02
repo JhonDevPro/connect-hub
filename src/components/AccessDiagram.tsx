@@ -6,6 +6,7 @@ import { RoomPasswordDialog } from "@/components/RoomPasswordDialog";
 import { Button } from "@/components/ui/button";
 import type { Layer } from "@/hooks/useAccess";
 import { cn } from "@/lib/utils";
+import { getRoomIcon, type RoomIconName } from "@/lib/room-icons";
 
 // Angular ranges (deg, 0 = right, clockwise) and ring radius (% of box) per layer
 const LAYER_GEO: Record<Layer, { from: number; to: number; r: number; label: string; Icon: typeof Network }> = {
@@ -85,7 +86,8 @@ export function AccessDiagram({
 
         {/* Room circles */}
         {nodes.map(({ room, layer, x, y }) => {
-          const Icon = LAYER_GEO[layer].Icon;
+          const fallbackIcon: RoomIconName = layer === "project" ? "network" : layer === "external" ? "home" : "waves";
+          const Icon = getRoomIcon(room.icon, fallbackIcon);
           const unlocked = isAdmin || access.has(room.id);
           return (
             <Button
