@@ -451,8 +451,8 @@ function RoomView() {
                   >
                     <Keyboard className="size-3.5" />
                     {pttActive
-                      ? "TRANSMITINDO VOZ (Barra de Espaço Pressionada)"
-                      : "PUSH-TO-TALK ATIVO: Segure a Barra de Espaço para Falar"}
+                      ? "TRANSMITINDO VOZ (Insert Pressionado)"
+                      : "PUSH-TO-TALK ATIVO: Segure Insert para Falar"}
                   </span>
                 </div>
               )}
