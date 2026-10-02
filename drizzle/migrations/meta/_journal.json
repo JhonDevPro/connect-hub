@@ -15,6 +15,13 @@
       "when": 1790951961390,
       "tag": "0001_room_access_layers_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790959059676,
+      "tag": "0002_add_room_icons",
+      "breakpoints": true
     }
   ]
 }
