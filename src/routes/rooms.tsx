@@ -1,20 +1,35 @@
-﻿import { useState, useEffect } from "react";
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { Hash, Plus, Radio, Menu, X } from "lucide-react";
+import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Radio, Menu, X, Settings } from "lucide-react";
 import { RoomSidebar, useRooms } from "@/components/RoomSidebar";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { Button } from "@/components/ui/button";
+import { AccessDiagram } from "@/components/AccessDiagram";
+import { AdminPanel } from "@/components/AdminPanel";
+import { useIsAdmin, useRoomAccessList } from "@/hooks/useAccess";
 
 export const Route = createFileRoute("/rooms")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Mapa de acesso — Nexo Hub" },
+      { name: "description", content: "Mapa de salas protegidas para videochamadas P2P da equipe." },
+      { property: "og:title", content: "Mapa de acesso — Nexo Hub" },
+      { property: "og:description", content: "Acesse as salas protegidas de comunicação da equipe." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: RoomsPage,
 });
 
 function RoomsPage() {
-  const navigate = useNavigate();
   const { profile, loading } = useSessionProfile();
   const rooms = useRooms();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const admin = useIsAdmin(profile?.id);
+  const access = useRoomAccessList(profile?.id);
 
   if (loading) {
     return (
@@ -31,7 +46,7 @@ function RoomsPage() {
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
       {/* Sidebar para desktop */}
       <div className="hidden md:block h-full shrink-0">
-        <RoomSidebar profile={profile} />
+        <RoomSidebar profile={profile} isAdmin={admin.data} onOpenAdmin={() => setAdminOpen(true)} />
       </div>
 
       {/* Drawer móvel para tablets e celulares */}
@@ -53,13 +68,13 @@ function RoomsPage() {
               </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <RoomSidebar profile={profile} />
+              <RoomSidebar profile={profile} isAdmin={admin.data} onOpenAdmin={() => setAdminOpen(true)} />
             </div>
           </div>
         </div>
       )}
 
-      <main className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6 text-center relative overflow-y-auto">
+      <main className="flex flex-1 flex-col relative min-w-0 overflow-hidden">
         {/* Botão de menu no topo para mobile */}
         <div className="absolute top-4 left-4 md:hidden">
           <Button
@@ -69,56 +84,17 @@ function RoomsPage() {
             onClick={() => setMobileMenuOpen(true)}
           >
             <Menu className="size-4" />
-            <span>Salas & Membros</span>
+            <span>Salas e membros</span>
           </Button>
         </div>
-
-        <div className="max-w-md space-y-6 w-full mt-10 md:mt-0">
-          <div className="mx-auto flex size-16 items-center justify-center rounded-2xl border border-border bg-surface text-primary shadow-panel">
-            <Radio className="size-8" />
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              {loading ? "Carregando..." : `Olá, ${profile?.name || "Membro"}!`}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Escolha uma sala abaixo ou crie uma nova para começar a chamada em equipe com vídeo HD e chat em tempo real.
-            </p>
-          </div>
-
-          {rooms.data && rooms.data.length > 0 ? (
-            <div className="space-y-3">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                Salas ativas
-              </p>
-              <div className="grid gap-2">
-                {rooms.data.map((room) => (
-                  <Button
-                    key={room.id}
-                    asChild
-                    variant="outline"
-                    className="w-full justify-start gap-3 h-12 text-sm border-border bg-surface/60 hover:bg-surface hover:text-primary transition-all"
-                  >
-                    <Link to="/room/$roomId" params={{ roomId: room.id }}>
-                      <Hash className="size-4 text-primary shrink-0" />
-                      <span className="truncate">{room.name}</span>
-                    </Link>
-                  </Button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            !loading && (
-              <div className="rounded-xl border border-dashed border-border p-6 bg-surface/20">
-                <p className="text-xs text-muted-foreground">
-                  Nenhuma sala foi criada ainda. Use o menu lateral para criar a primeira sala!
-                </p>
-              </div>
-            )
-          )}
-        </div>
+        {admin.data && (
+          <Button variant="outline" size="sm" className="absolute right-4 top-4 z-10 gap-2" onClick={() => setAdminOpen(true)}>
+            <Settings className="size-4" /> Administração
+          </Button>
+        )}
+        <AccessDiagram rooms={rooms.data ?? []} access={access.data ?? new Set()} isAdmin={!!admin.data} />
       </main>
+      {profile && admin.data && <AdminPanel open={adminOpen} onOpenChange={setAdminOpen} userId={profile.id} />}
     </div>
   );
 }

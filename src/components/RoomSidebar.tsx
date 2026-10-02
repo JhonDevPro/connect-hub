@@ -1,11 +1,8 @@
-import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hash, LogOut, Radio, Users, Mail, Settings } from "lucide-react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { SessionProfile } from "@/hooks/useSessionProfile";
 import { useGlobalPresence } from "@/hooks/useGlobalPresence";
