@@ -13,3 +13,4 @@
 - Persist room access grants per user and revoke them when an administrator changes a room password, so remembered access remains secure.
 - Use the Insert key as the default Push-to-Talk shortcut, keeping Space available for normal keyboard use.
 - Send ephemeral in-call attention alerts through the room presence channel broadcast, keeping them separate from WebRTC media and chat history.
+- Keep the curated room icon catalog centralized so database values, admin selection, and map rendering stay synchronized.
