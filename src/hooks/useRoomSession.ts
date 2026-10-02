@@ -2,6 +2,7 @@
 import type Peer from "peerjs";
 import type { MediaConnection } from "peerjs";
 import { supabase } from "@/integrations/supabase/client";
+import { playAttentionSound, unlockAttentionSound } from "@/lib/attention-alert";
 
 export type Member = {
   user_id: string;
@@ -15,6 +16,18 @@ export type Member = {
 export type RemoteParticipant = {
   peerId: string;
   stream: MediaStream;
+};
+
+export type AttentionAlert = {
+  id: string;
+  fromName: string;
+};
+
+type AttentionPayload = {
+  id?: unknown;
+  fromUserId?: unknown;
+  fromName?: unknown;
+  targetUserId?: unknown;
 };
 
 export type MediaDeviceInfoItem = {
@@ -46,6 +59,8 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
   const [pushToTalk, setPushToTalk] = useState(false);
   const [pttKey, setPttKey] = useState<string>("Insert");
   const [pttActive, setPttActive] = useState(false);
+  const [attentionAlert, setAttentionAlert] = useState<AttentionAlert | null>(null);
+  const [attentionCooldown, setAttentionCooldown] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Dispositivos identificados no navegador (Tablets, Celulares e Notebooks)
@@ -58,6 +73,10 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
   const peerRef = useRef<Peer | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const callsRef = useRef<Map<string, MediaConnection>>(new Map());
+  const inCallRef = useRef(false);
+  const attentionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attentionCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAttentionReceivedRef = useRef(0);
 
   const micLive = micOn && (!pushToTalk || pttActive);
 
@@ -132,6 +151,27 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
         }
         setMembers(list);
       })
+      .on("broadcast", { event: "attention" }, ({ payload }) => {
+        const alert = payload as AttentionPayload;
+        const isForMe = alert.targetUserId === me.id || alert.targetUserId === null;
+        if (
+          !inCallRef.current ||
+          !isForMe ||
+          typeof alert.id !== "string" ||
+          typeof alert.fromName !== "string" ||
+          typeof alert.fromUserId !== "string" ||
+          alert.fromUserId === me.id ||
+          Date.now() - lastAttentionReceivedRef.current < 2000
+        ) {
+          return;
+        }
+
+        lastAttentionReceivedRef.current = Date.now();
+        setAttentionAlert({ id: alert.id, fromName: alert.fromName });
+        void playAttentionSound().catch(() => undefined);
+        if (attentionTimeoutRef.current) clearTimeout(attentionTimeoutRef.current);
+        attentionTimeoutRef.current = setTimeout(() => setAttentionAlert(null), 4000);
+      })
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
           void channel.track({
@@ -147,6 +187,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
 
     return () => {
       channelRef.current = null;
+      if (attentionTimeoutRef.current) clearTimeout(attentionTimeoutRef.current);
       try {
         void supabase.removeChannel(channel);
       } catch {}
@@ -166,6 +207,10 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
       mic_on: inCall ? micLive : false,
     });
   }, [inCall, peerId, camOn, micLive, me?.id, me?.name, me?.avatar]);
+
+  useEffect(() => {
+    inCallRef.current = inCall;
+  }, [inCall]);
 
   /* ---------- media track state ---------- */
   useEffect(() => {
@@ -351,6 +396,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     setConnecting(true);
     setError(null);
     try {
+      await unlockAttentionSound().catch(() => undefined);
       const stream = await acquireUserMedia(selectedVideoDeviceId, selectedAudioDeviceId);
       streamRef.current = stream;
       setLocalStream(stream);
@@ -395,6 +441,28 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     }
   }, [inCall, connecting, micOn, pushToTalk, attachCall, acquireUserMedia, selectedVideoDeviceId, selectedAudioDeviceId, refreshDevices, members, me?.id]);
 
+  const sendAttention = useCallback(async (targetUserId?: string) => {
+    const channel = channelRef.current;
+    if (!channel || !me || !inCallRef.current || attentionCooldown) return false;
+
+    const response = await channel.send({
+      type: "broadcast",
+      event: "attention",
+      payload: {
+        id: crypto.randomUUID(),
+        fromUserId: me.id,
+        fromName: me.name,
+        targetUserId: targetUserId ?? null,
+      },
+    });
+
+    if (response !== "ok") return false;
+    setAttentionCooldown(true);
+    if (attentionCooldownRef.current) clearTimeout(attentionCooldownRef.current);
+    attentionCooldownRef.current = setTimeout(() => setAttentionCooldown(false), 5000);
+    return true;
+  }, [attentionCooldown, me]);
+
   const leave = useCallback(() => {
     callsRef.current.forEach((c) => c.close());
     callsRef.current.clear();
@@ -410,6 +478,11 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
   }, []);
 
   useEffect(() => leave, [leave]);
+
+  useEffect(() => () => {
+    if (attentionTimeoutRef.current) clearTimeout(attentionTimeoutRef.current);
+    if (attentionCooldownRef.current) clearTimeout(attentionCooldownRef.current);
+  }, []);
 
   const memberByPeer = useMemo(() => {
     const map = new Map<string, Member>();
@@ -439,6 +512,9 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     pttKey,
     setPttKey,
     pttActive,
+    attentionAlert,
+    attentionCooldown,
+    sendAttention,
     videoDevices,
     audioDevices,
     selectedVideoDeviceId,
