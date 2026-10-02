@@ -44,7 +44,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
   const [micOn, setMicOn] = useState(true);
   const [deafened, setDeafened] = useState(false);
   const [pushToTalk, setPushToTalk] = useState(false);
-  const [pttKey, setPttKey] = useState<string>("Space");
+  const [pttKey, setPttKey] = useState<string>("Insert");
   const [pttActive, setPttActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,7 +189,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     };
     const down = (e: KeyboardEvent) => {
       if (e.code !== pttKey || isTyping(e.target)) return;
-      if (e.code === "Space") e.preventDefault();
+      e.preventDefault();
       setPttActive(true);
     };
     const up = (e: KeyboardEvent) => {

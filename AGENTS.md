@@ -11,3 +11,4 @@
 
 - Store authorization roles separately from profiles and enforce room access in database policies, because client-visible identity fields are not authorization controls.
 - Persist room access grants per user and revoke them when an administrator changes a room password, so remembered access remains secure.
+- Use the Insert key as the default Push-to-Talk shortcut, keeping Space available for normal keyboard use.
