@@ -163,7 +163,7 @@ function RoomView() {
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
       {/* Barra Lateral Esquerda para Desktop */}
       <div className="hidden md:block h-full shrink-0">
-        <RoomSidebar activeRoomId={roomId} profile={profile} />
+        <RoomSidebar profile={profile} />
       </div>
 
       {/* Drawer Móvel da Barra Lateral para Tablets e Celulares */}
