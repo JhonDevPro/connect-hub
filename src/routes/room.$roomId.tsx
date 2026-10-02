@@ -185,7 +185,7 @@ function RoomView() {
               </Button>
             </div>
             <div className="flex-1 min-h-0 overflow-hidden">
-              <RoomSidebar activeRoomId={roomId} profile={profile} />
+              <RoomSidebar profile={profile} />
             </div>
           </div>
         </div>
