@@ -8,6 +8,13 @@
       "when": 1790874346790,
       "tag": "0000_rooms_delete_cascade",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790951961390,
+      "tag": "0001_room_access_layers_admin",
+      "breakpoints": true
     }
   ]
 }
