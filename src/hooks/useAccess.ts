@@ -6,10 +6,11 @@ export function useIsAdmin(userId?: string | null) {
     queryKey: ["is-admin", userId],
     enabled: !!userId,
     queryFn: async () => {
+      if (!userId) return false;
       const { data } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", userId!)
+        .eq("user_id", userId)
         .eq("role", "admin")
         .maybeSingle();
       return !!data;
@@ -22,7 +23,8 @@ export function useRoomAccessList(userId?: string | null) {
     queryKey: ["room-access", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data } = await supabase.from("room_access").select("room_id").eq("user_id", userId!);
+      if (!userId) return new Set<string>();
+      const { data } = await supabase.from("room_access").select("room_id").eq("user_id", userId);
       return new Set((data ?? []).map((r) => r.room_id));
     },
   });

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Hash, LogOut, Plus, Radio, Users, Mail, Loader2, Trash2 } from "lucide-react";
+import { Hash, LogOut, Radio, Users, Mail, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { SessionProfile } from "@/hooks/useSessionProfile";
 import { useGlobalPresence } from "@/hooks/useGlobalPresence";
 
-export type Room = { id: string; name: string; description: string | null };
+export type Room = { id: string; name: string; description: string | null; layer: string };
 
 export function useRooms() {
   return useQuery({
@@ -18,7 +18,7 @@ export function useRooms() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rooms")
-        .select("id, name, description")
+        .select("id, name, description, layer")
         .order("created_at", { ascending: true });
       if (error) {
         console.error("Erro ao carregar salas:", error);
@@ -32,81 +32,20 @@ export function useRooms() {
 export function RoomSidebar({
   activeRoomId,
   profile,
+  isAdmin = false,
+  onOpenAdmin,
 }: {
   activeRoomId?: string;
   profile: SessionProfile | null;
+  isAdmin?: boolean;
+  onOpenAdmin?: () => void;
 }) {
   const rooms = useRooms();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [newName, setNewName] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [creating, setCreating] = useState(false);
 
   // Presença de todos os membros do sistema com indicador online (verde) / offline (vermelho)
   const { members, onlineCount } = useGlobalPresence(profile);
-
-  const createRoom = useMutation({
-    mutationFn: async (name: string) => {
-      setCreating(true);
-      // Obtém o ID do usuário direto da sessão autenticada do Supabase
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserId = sessionData.session?.user?.id || profile?.id;
-
-      if (!currentUserId) {
-        throw new Error("Você precisa estar autenticado para criar uma sala.");
-      }
-
-      const { data, error } = await supabase
-        .from("rooms")
-        .insert({
-          name: name.trim(),
-          created_by: currentUserId,
-        })
-        .select("id")
-        .single();
-
-      if (error) {
-        // Tenta fallback sem created_by caso haja divergência de foreign key
-        const fallback = await supabase
-          .from("rooms")
-          .insert({ name: name.trim() })
-          .select("id")
-          .single();
-        if (fallback.error) throw fallback.error;
-        return fallback.data.id as string;
-      }
-
-      return data.id as string;
-    },
-    onSuccess: (id) => {
-      setNewName("");
-      setAdding(false);
-      setCreating(false);
-      toast.success("Sala criada com sucesso!");
-      void queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      void navigate({ to: "/room/$roomId", params: { roomId: id } });
-    },
-    onError: (e: Error) => {
-      setCreating(false);
-      toast.error(e.message || "Erro ao criar sala");
-    },
-  });
-
-  const deleteRoom = useMutation({
-    mutationFn: async (id: string) => {
-      const { error, count } = await supabase.from("rooms").delete({ count: "exact" }).eq("id", id);
-      if (error) throw error;
-      if (!count) throw new Error("Não foi possível excluir a sala.");
-      return id;
-    },
-    onSuccess: (id) => {
-      toast.success("Sala excluída");
-      void queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      if (id === activeRoomId) void navigate({ to: "/rooms" });
-    },
-    onError: (e: Error) => toast.error(e.message || "Erro ao excluir sala"),
-  });
 
   async function signOut() {
     await queryClient.cancelQueries();
@@ -132,47 +71,12 @@ export function RoomSidebar({
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Salas de Chamada
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 rounded-lg hover:bg-surface text-muted-foreground hover:text-foreground"
-          aria-label="Nova sala"
-          onClick={() => setAdding((v) => !v)}
-          title="Criar nova sala"
-        >
-          <Plus className="size-4" />
-        </Button>
+        {isAdmin && onOpenAdmin && (
+          <Button variant="ghost" size="icon" className="size-7" aria-label="Painel administrativo" onClick={onOpenAdmin} title="Painel administrativo">
+            <Settings className="size-4" />
+          </Button>
+        )}
       </div>
-
-      {adding && (
-        <form
-          className="px-3 pb-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const value = newName.trim();
-            if (value && !creating) createRoom.mutate(value);
-          }}
-        >
-          <div className="flex items-center gap-1.5">
-            <Input
-              autoFocus
-              value={newName}
-              placeholder="Nome da sala..."
-              onChange={(e) => setNewName(e.target.value)}
-              className="h-8 bg-background text-sm text-foreground placeholder:text-muted-foreground/60"
-              disabled={creating}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              className="h-8 px-2.5 text-xs"
-              disabled={creating || !newName.trim()}
-            >
-              {creating ? <Loader2 className="size-3 animate-spin" /> : "Criar"}
-            </Button>
-          </div>
-        </form>
-      )}
 
       <nav className="space-y-0.5 overflow-y-auto px-2 max-h-48 scrollbar-thin">
         {rooms.isLoading ? (
@@ -183,12 +87,12 @@ export function RoomSidebar({
           </p>
         ) : (
           rooms.data?.map((room) => (
-            <div key={room.id} className="group relative">
+            <div key={room.id} className="relative">
               <Link
                 to="/room/$roomId"
                 params={{ roomId: room.id }}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-2.5 py-2 pr-8 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
                   room.id === activeRoomId
                     ? "bg-primary/15 text-primary"
                     : "text-muted-foreground hover:bg-surface hover:text-foreground"
@@ -197,20 +101,6 @@ export function RoomSidebar({
                 <Hash className="size-4 shrink-0 opacity-70" />
                 <span className="truncate">{room.name}</span>
               </Link>
-              <button
-                type="button"
-                aria-label={`Excluir sala ${room.name}`}
-                title="Excluir sala"
-                disabled={deleteRoom.isPending}
-                onClick={() => {
-                  if (window.confirm(`Excluir a sala "${room.name}"? As mensagens e arquivos dela também serão apagados.`)) {
-                    deleteRoom.mutate(room.id);
-                  }
-                }}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/15 hover:text-destructive focus:opacity-100 group-hover:opacity-100"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
             </div>
           ))
         )}
