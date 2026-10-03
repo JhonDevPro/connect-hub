@@ -77,7 +77,7 @@ export function AdminPanel({ open, onOpenChange, userId }: { open: boolean; onOp
         .select("id")
         .single();
       if (error) throw error;
-      const { error: e2 } = await supabase.from("room_secrets").insert({ room_id: data.id, password: v.password });
+      const { error: e2 } = await supabase.from("room_secrets").insert({ room_id: data.id, password: form.password });
       if (e2) throw e2;
     },
     onSuccess: () => {
@@ -190,7 +190,7 @@ export function AdminPanel({ open, onOpenChange, userId }: { open: boolean; onOp
               })}
             </div>
           </fieldset>
-          <Button type="submit" className="sm:col-span-2" disabled={create.isPending}>
+          <Button type="submit" className="sm:col-span-2 gap-2" disabled={busy}>
             {busy ? (
               <Loader2 className="size-4 animate-spin" />
             ) : editingId ? (
