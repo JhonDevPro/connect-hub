@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, MicOff, VideoOff, Volume2 } from "lucide-react";
+import { Hand, Mic, MicOff, VideoOff, Volume2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ type Props = {
   camOn?: boolean;
   micOn?: boolean;
   deafened?: boolean;
+  raisedHand?: boolean;
 };
 
 export function VideoTile({
@@ -19,6 +20,7 @@ export function VideoTile({
   camOn = true,
   micOn = true,
   deafened = false,
+  raisedHand = false,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [volume, setVolume] = useState(100);
@@ -76,6 +78,12 @@ export function VideoTile({
           {micOn ? <Mic className="size-3.5" /> : <MicOff className="size-3.5" />}
         </span>
       </div>
+
+      {raisedHand && (
+        <span className="absolute right-2 top-11 flex items-center gap-1 rounded-full border border-primary/40 bg-background/90 px-2 py-1 text-xs font-semibold text-primary shadow-panel">
+          <Hand className="size-3.5" /> Mão levantada
+        </span>
+      )}
 
       {!isLocal && (
         <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-background/90 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
