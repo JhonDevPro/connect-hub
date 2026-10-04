@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { Layer } from "@/hooks/useAccess";
 import { cn } from "@/lib/utils";
 import { getRoomIcon, type RoomIconName } from "@/lib/room-icons";
+import { useRoomPresenceCounts } from "@/hooks/useRoomPresenceCounts";
 
 // Angular ranges (deg, 0 = right, clockwise) and ring radius (% of box) per layer
 const LAYER_GEO: Record<Layer, { from: number; to: number; r: number; label: string; Icon: typeof Network }> = {
@@ -26,6 +27,8 @@ export function AccessDiagram({
 }) {
   const navigate = useNavigate();
   const [pending, setPending] = useState<Room | null>(null);
+  const visibleRoomIds = rooms.filter((room) => isAdmin || access.has(room.id)).map((room) => room.id);
+  const presenceCounts = useRoomPresenceCounts(visibleRoomIds);
 
   function open(room: Room) {
     if (isAdmin || access.has(room.id)) {
@@ -45,11 +48,11 @@ export function AccessDiagram({
   });
 
   return (
-    <div className="flex flex-1 flex-col items-center overflow-y-auto p-4">
+    <div className="flex flex-1 flex-col items-center overflow-y-auto p-4 sm:p-6">
       <h2 className="mb-4 flex items-center gap-2 text-lg sm:text-2xl font-bold uppercase tracking-wide text-foreground">
         <Video className="size-6 text-primary" /> Mapeamento do Sistema de Acesso
       </h2>
-      <div className="relative aspect-square w-full max-w-[640px]">
+      <div className="relative aspect-square w-full max-w-[min(920px,82vh)]">
         {/* Rings */}
         <div className="absolute inset-[5%] rounded-full border-[3px] border-primary shadow-glow" />
         <div className="absolute inset-[20%] rounded-full border-[3px] border-primary/90 shadow-glow" />
@@ -114,6 +117,11 @@ export function AccessDiagram({
               <span className="max-w-[140px] rounded bg-background/80 px-1 text-center text-[10px] sm:text-xs font-semibold uppercase text-primary">
                 {room.name}
               </span>
+              {unlocked && (
+                <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[9px] font-medium text-muted-foreground sm:text-[10px]">
+                  {presenceCounts[room.id] ?? 0} online
+                </span>
+              )}
             </Button>
           );
         })}

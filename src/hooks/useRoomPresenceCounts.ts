@@ -14,7 +14,7 @@ export function useRoomPresenceCounts(roomIds: string[]) {
     }
 
     const channels = roomIds.map((roomId) => {
-      const channel = supabase.channel(`room-map-presence-${roomId}`);
+      const channel = supabase.channel(`room-presence-${roomId}`);
       channel
         .on("presence", { event: "sync" }, () => {
           const state = channel.presenceState<PresenceEntry>();
