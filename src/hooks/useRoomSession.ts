@@ -11,6 +11,7 @@ export type Member = {
   peer_id: string | null;
   cam_on: boolean;
   mic_on: boolean;
+  raised_hand?: boolean;
 };
 
 export type RemoteParticipant = {
@@ -37,6 +38,8 @@ export type MediaDeviceInfoItem = {
 
 type Me = { id: string; name: string; avatar: string | null };
 
+export type ConnectionStatus = "connecting" | "connected" | "unstable" | "reconnecting";
+
 const ICE = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -62,6 +65,10 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
   const [attentionAlert, setAttentionAlert] = useState<AttentionAlert | null>(null);
   const [attentionCooldown, setAttentionCooldown] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
+  const [raisedHand, setRaisedHand] = useState(false);
+  const [sharingScreen, setSharingScreen] = useState(false);
+  const [reconnectTick, setReconnectTick] = useState(0);
 
   // Dispositivos identificados no navegador (Tablets, Celulares e Notebooks)
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfoItem[]>([]);
@@ -77,6 +84,9 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
   const attentionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attentionCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastAttentionReceivedRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const cameraTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const micLive = micOn && (!pushToTalk || pttActive);
 
@@ -181,6 +191,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
             peer_id: null,
             cam_on: false,
             mic_on: false,
+            raised_hand: false,
           });
         }
       });
@@ -205,8 +216,9 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
       peer_id: inCall ? peerId : null,
       cam_on: inCall ? camOn : false,
       mic_on: inCall ? micLive : false,
+      raised_hand: inCall ? raisedHand : false,
     });
-  }, [inCall, peerId, camOn, micLive, me?.id, me?.name, me?.avatar]);
+  }, [inCall, peerId, camOn, micLive, raisedHand, me?.id, me?.name, me?.avatar]);
 
   useEffect(() => {
     inCallRef.current = inCall;
@@ -263,6 +275,11 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     const drop = () => {
       callsRef.current.delete(call.peer);
       setRemotes((prev) => prev.filter((r) => r.peerId !== call.peer));
+      if (inCallRef.current && navigator.onLine) {
+        setConnectionStatus("reconnecting");
+        if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = setTimeout(() => setReconnectTick((value) => value + 1), 1500);
+      }
     };
     call.on("close", drop);
     call.on("error", drop);
@@ -285,7 +302,64 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
         /* peer may have just left */
       }
     }
-  }, [members, peerId, inCall, attachCall, localStream]);
+  }, [members, peerId, inCall, attachCall, localStream, reconnectTick]);
+
+  useEffect(() => {
+    if (!inCall) return;
+    const offline = () => setConnectionStatus("reconnecting");
+    const online = () => {
+      setConnectionStatus("reconnecting");
+      const peer = peerRef.current;
+      if (peer?.disconnected) {
+        try { peer.reconnect(); } catch {}
+      }
+      setReconnectTick((value) => value + 1);
+    };
+    window.addEventListener("offline", offline);
+    window.addEventListener("online", online);
+    return () => {
+      window.removeEventListener("offline", offline);
+      window.removeEventListener("online", online);
+    };
+  }, [inCall]);
+
+  useEffect(() => {
+    if (!inCall) return;
+    const checkQuality = async () => {
+      if (!navigator.onLine) {
+        setConnectionStatus("reconnecting");
+        return;
+      }
+      let lost = 0;
+      let received = 0;
+      let slow = false;
+      for (const call of callsRef.current.values()) {
+        const connection = (call as unknown as { peerConnection?: RTCPeerConnection }).peerConnection;
+        if (!connection) continue;
+        if (connection.connectionState === "failed" || connection.connectionState === "disconnected") {
+          setConnectionStatus("reconnecting");
+          call.close();
+          setReconnectTick((value) => value + 1);
+          return;
+        }
+        const stats = await connection.getStats();
+        stats.forEach((report) => {
+          if (report.type === "inbound-rtp") {
+            lost += Number(report.packetsLost ?? 0);
+            received += Number(report.packetsReceived ?? 0);
+          }
+          if (report.type === "candidate-pair" && report.state === "succeeded") {
+            slow ||= Number(report.currentRoundTripTime ?? 0) > 0.45;
+          }
+        });
+      }
+      const lossRate = lost + received > 0 ? lost / (lost + received) : 0;
+      setConnectionStatus(lossRate > 0.08 || slow ? "unstable" : "connected");
+    };
+    void checkQuality();
+    const interval = setInterval(() => void checkQuality(), 5000);
+    return () => clearInterval(interval);
+  }, [inCall, reconnectTick]);
 
   /* ---------- Obter Stream com Fallback para Tablet/Mobile ---------- */
   const acquireUserMedia = useCallback(
@@ -366,6 +440,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
             oldVideoTrack.stop();
           }
           streamRef.current.addTrack(newVideoTrack);
+          cameraTrackRef.current = newVideoTrack;
           setLocalStream(new MediaStream(streamRef.current.getTracks()));
 
           // Substitui o track em todas as conexões PeerJS ativas
@@ -386,6 +461,55 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     }
   }, [videoDevices, selectedVideoDeviceId, inCall]);
 
+  const replaceOutgoingVideo = useCallback((track: MediaStreamTrack | null) => {
+    callsRef.current.forEach((call) => {
+      const connection = (call as unknown as { peerConnection?: RTCPeerConnection }).peerConnection;
+      const sender = connection?.getSenders().find((item) => item.track?.kind === "video");
+      if (sender) void sender.replaceTrack(track);
+    });
+  }, []);
+
+  const stopScreenShare = useCallback(() => {
+    const stream = streamRef.current;
+    const cameraTrack = cameraTrackRef.current;
+    if (!stream) return;
+    const screenTrack = stream.getVideoTracks()[0];
+    if (screenTrack && screenTrack !== cameraTrack) {
+      stream.removeTrack(screenTrack);
+      screenTrack.stop();
+    }
+    if (cameraTrack) {
+      cameraTrack.enabled = camOn;
+      stream.addTrack(cameraTrack);
+      replaceOutgoingVideo(cameraTrack);
+    }
+    setLocalStream(new MediaStream(stream.getTracks()));
+    setSharingScreen(false);
+  }, [camOn, replaceOutgoingVideo]);
+
+  const toggleScreenShare = useCallback(async () => {
+    if (sharingScreen) {
+      stopScreenShare();
+      return;
+    }
+    if (!navigator.mediaDevices?.getDisplayMedia || !streamRef.current) return;
+    try {
+      const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const screenTrack = display.getVideoTracks()[0];
+      if (!screenTrack) return;
+      const stream = streamRef.current;
+      const currentVideo = stream.getVideoTracks()[0];
+      if (currentVideo) stream.removeTrack(currentVideo);
+      stream.addTrack(screenTrack);
+      replaceOutgoingVideo(screenTrack);
+      setLocalStream(new MediaStream(stream.getTracks()));
+      setSharingScreen(true);
+      screenTrack.addEventListener("ended", stopScreenShare, { once: true });
+    } catch {
+      // The browser closes its chooser when the user cancels; no error message is needed.
+    }
+  }, [sharingScreen, stopScreenShare, replaceOutgoingVideo]);
+
   const join = useCallback(async () => {
     if (inCall || connecting) return;
     const othersInCall = members.filter((m) => m.peer_id && m.user_id !== me?.id).length;
@@ -394,11 +518,13 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
       return;
     }
     setConnecting(true);
+    setConnectionStatus("connecting");
     setError(null);
     try {
       await unlockAttentionSound().catch(() => undefined);
       const stream = await acquireUserMedia(selectedVideoDeviceId, selectedAudioDeviceId);
       streamRef.current = stream;
+      cameraTrackRef.current = stream.getVideoTracks()[0] ?? null;
       setLocalStream(stream);
       stream.getAudioTracks().forEach((t) => (t.enabled = micOn && !pushToTalk));
 
@@ -416,6 +542,13 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
         attachCall(call);
       });
       peer.on("error", (err) => setError(err.message));
+      peer.on("disconnected", () => {
+        if (!inCallRef.current) return;
+        setConnectionStatus("reconnecting");
+        if (navigator.onLine) {
+          try { peer.reconnect(); } catch {}
+        }
+      });
 
       await new Promise<void>((resolve, reject) => {
         peer.on("open", () => resolve());
@@ -425,6 +558,8 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
 
       setPeerId(peer.id);
       setInCall(true);
+      setConnectionStatus("connected");
+      reconnectAttemptsRef.current = 0;
     } catch (e) {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -474,6 +609,9 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     setRemotes([]);
     setPeerId(null);
     setInCall(false);
+    setRaisedHand(false);
+    setSharingScreen(false);
+    setConnectionStatus("connecting");
     setPttActive(false);
   }, []);
 
@@ -482,6 +620,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
   useEffect(() => () => {
     if (attentionTimeoutRef.current) clearTimeout(attentionTimeoutRef.current);
     if (attentionCooldownRef.current) clearTimeout(attentionCooldownRef.current);
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
   }, []);
 
   const memberByPeer = useMemo(() => {
@@ -515,6 +654,11 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     attentionAlert,
     attentionCooldown,
     sendAttention,
+    connectionStatus,
+    raisedHand,
+    setRaisedHand,
+    sharingScreen,
+    toggleScreenShare,
     videoDevices,
     audioDevices,
     selectedVideoDeviceId,
