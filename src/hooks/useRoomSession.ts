@@ -90,6 +90,21 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
 
   const micLive = micOn && (!pushToTalk || pttActive);
 
+  useEffect(() => {
+    const cameraPreference = window.localStorage.getItem("nexo-camera-on");
+    const microphonePreference = window.localStorage.getItem("nexo-microphone-on");
+    if (cameraPreference !== null) setCamOn(cameraPreference === "true");
+    if (microphonePreference !== null) setMicOn(microphonePreference === "true");
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("nexo-camera-on", String(camOn));
+  }, [camOn]);
+
+  useEffect(() => {
+    window.localStorage.setItem("nexo-microphone-on", String(micOn));
+  }, [micOn]);
+
   /* ---------- Identifica Câmeras e Microfones disponíveis no Tablet/Navegador ---------- */
   const refreshDevices = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
@@ -228,9 +243,9 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
   useEffect(() => {
     const stream = streamRef.current;
     if (!stream) return;
-    stream.getVideoTracks().forEach((t) => (t.enabled = camOn));
+    if (!sharingScreen) stream.getVideoTracks().forEach((t) => (t.enabled = camOn));
     stream.getAudioTracks().forEach((t) => (t.enabled = micLive));
-  }, [camOn, micLive, localStream]);
+  }, [camOn, micLive, localStream, sharingScreen]);
 
   /* ---------- push to talk key ---------- */
   useEffect(() => {
