@@ -13,6 +13,7 @@ type Props = {
   deafened?: boolean;
   raisedHand?: boolean;
   displayImagePath?: string | null | undefined;
+  userId?: string | undefined;
   /** Stable participant id used to remember this person's volume on this device */
   volumeKey?: string | undefined;
 };
@@ -37,6 +38,7 @@ export function VideoTile({
   deafened = false,
   raisedHand = false,
   displayImagePath = null,
+  userId,
   volumeKey,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -45,19 +47,28 @@ export function VideoTile({
 
   useEffect(() => {
     let active = true;
-    if (!displayImagePath) {
-      setDisplayImageUrl(null);
-      return undefined;
-    }
-    void import("@/integrations/supabase/client").then(({ supabase }) =>
-      supabase.storage.from("profile-displays").createSignedUrl(displayImagePath, 3600),
-    ).then(({ data }) => {
+    void (async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      let path = displayImagePath ?? null;
+      if (!path && userId && !isLocal) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("display_image_path")
+          .eq("id", userId)
+          .maybeSingle();
+        path = data?.display_image_path ?? null;
+      }
+      if (!path) {
+        if (active) setDisplayImageUrl(null);
+        return;
+      }
+      const { data } = await supabase.storage.from("profile-displays").createSignedUrl(path, 3600);
       if (active) setDisplayImageUrl(data?.signedUrl ?? null);
-    });
+    })();
     return () => {
       active = false;
     };
-  }, [displayImagePath]);
+  }, [displayImagePath, userId, isLocal, camOn]);
 
   useEffect(() => {
     if (!volumeKey) return;
