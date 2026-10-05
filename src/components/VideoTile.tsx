@@ -121,7 +121,7 @@ export function VideoTile({
             value={[volume]}
             max={150}
             step={5}
-            onValueChange={(v) => setVolume(v[0] ?? 0)}
+            onValueChange={(v) => changeVolume(v[0] ?? 0)}
             aria-label={`Volume de ${name}`}
           />
           <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
