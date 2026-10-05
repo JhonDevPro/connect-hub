@@ -471,6 +471,7 @@ function RoomView() {
                           deafened={deafened}
                           raisedHand={m?.raised_hand ?? false}
                           displayImagePath={m?.display_image_path}
+                          userId={m?.user_id}
                         />
                       ),
                     };

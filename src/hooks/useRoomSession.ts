@@ -697,6 +697,35 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     return map;
   }, [members]);
 
+  // Only show streams of peers currently in the call, one tile per user
+  const visibleRemotes = useMemo(() => {
+    const seenUsers = new Set<string>();
+    const result: RemoteParticipant[] = [];
+    for (let i = remotes.length - 1; i >= 0; i--) {
+      const r = remotes[i]!;
+      const m = memberByPeer.get(r.peerId);
+      if (!m || m.user_id === me?.id || seenUsers.has(m.user_id)) continue;
+      seenUsers.add(m.user_id);
+      result.unshift(r);
+    }
+    return result;
+  }, [remotes, memberByPeer, me?.id]);
+
+  // Close calls to peers that left (avoid ghost tiles), with a grace period for presence lag
+  useEffect(() => {
+    if (!inCall) return;
+    const t = setTimeout(() => {
+      for (const [peer, call] of [...callsRef.current.entries()]) {
+        if (memberByPeer.has(peer)) continue;
+        callsRef.current.delete(peer);
+        connectedPeersRef.current.delete(peer);
+        try { call.close(); } catch {}
+      }
+      setRemotes((prev) => prev.filter((r) => memberByPeer.has(r.peerId)));
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [memberByPeer, inCall, meshTick]);
+
   return {
     members,
     memberByPeer,
@@ -704,7 +733,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     connecting,
     error,
     localStream,
-    remotes,
+    remotes: visibleRemotes,
     camOn,
     setCamOn,
     micOn,
