@@ -29,6 +29,13 @@
       "when": 1791148968948,
       "tag": "0003_chat_replies_and_reactions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791208171028,
+      "tag": "0004_add_profile_display_images",
+      "breakpoints": true
     }
   ]
 }
