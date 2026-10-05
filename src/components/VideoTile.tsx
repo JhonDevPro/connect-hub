@@ -12,7 +12,19 @@ type Props = {
   micOn?: boolean;
   deafened?: boolean;
   raisedHand?: boolean;
+  /** Stable participant id used to remember this person's volume on this device */
+  volumeKey?: string | undefined;
 };
+
+const VOLUME_STORAGE = "nexo-participant-volumes";
+
+function readVolumes(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(VOLUME_STORAGE) || "{}") as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
 
 export function VideoTile({
   stream,
@@ -23,9 +35,24 @@ export function VideoTile({
   micOn = true,
   deafened = false,
   raisedHand = false,
+  volumeKey,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [volume, setVolume] = useState(100);
+
+  useEffect(() => {
+    if (!volumeKey) return;
+    const saved = readVolumes()[volumeKey];
+    if (typeof saved === "number") setVolume(saved);
+  }, [volumeKey]);
+
+  const changeVolume = (v: number) => {
+    setVolume(v);
+    if (!volumeKey) return;
+    const all = readVolumes();
+    all[volumeKey] = v;
+    localStorage.setItem(VOLUME_STORAGE, JSON.stringify(all));
+  };
 
   useEffect(() => {
     const el = videoRef.current;
@@ -94,7 +121,7 @@ export function VideoTile({
             value={[volume]}
             max={150}
             step={5}
-            onValueChange={(v) => setVolume(v[0] ?? 0)}
+            onValueChange={(v) => changeVolume(v[0] ?? 0)}
             aria-label={`Volume de ${name}`}
           />
           <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
