@@ -461,6 +461,7 @@ function RoomView() {
                       node: (
                         <VideoTile
                           stream={remote.stream}
+                          volumeKey={m?.id}
                           name={m?.name || `Participante (${remote.peerId.slice(0, 4)})`}
                           camOn={m?.cam_on ?? true}
                           micOn={m?.mic_on ?? true}
