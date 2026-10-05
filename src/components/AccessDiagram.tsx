@@ -56,12 +56,6 @@ export function AccessDiagram({
         {/* Rings */}
         <div className="absolute inset-[5%] rounded-full border-[3px] border-primary shadow-glow" />
         <div className="absolute inset-[20%] rounded-full border-[3px] border-primary/90 shadow-glow" />
-        <span className="absolute bottom-[1%] left-1/2 -translate-x-1/2 text-[10px] sm:text-xs text-muted-foreground">
-          Camada de Acesso Externo
-        </span>
-        <span className="absolute bottom-[16%] left-1/2 -translate-x-1/2 text-[10px] sm:text-xs text-muted-foreground">
-          Camada de Acesso Interno
-        </span>
 
         {/* Center hub */}
         <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 text-center">
@@ -70,22 +64,6 @@ export function AccessDiagram({
           </div>
           <span className="text-[11px] sm:text-sm font-semibold uppercase text-primary">Central Hub /<br />Chamada P2P</span>
         </div>
-
-        {/* Layer labels when empty */}
-        {(Object.keys(LAYER_GEO) as Layer[]).map((layer) => {
-          if (rooms.some((r) => (r.layer ?? "work") === layer)) return null;
-          const g = LAYER_GEO[layer];
-          const rad = (((g.from + g.to) / 2) * Math.PI) / 180;
-          return (
-            <span
-              key={layer}
-              className="absolute -translate-x-1/2 -translate-y-1/2 max-w-[30%] text-center text-[10px] uppercase text-muted-foreground/70"
-              style={{ left: `${50 + g.r * Math.cos(rad)}%`, top: `${50 + g.r * Math.sin(rad)}%` }}
-            >
-              {g.label}<br />(sem salas)
-            </span>
-          );
-        })}
 
         {/* Room circles */}
         {nodes.map(({ room, layer, x, y }) => {

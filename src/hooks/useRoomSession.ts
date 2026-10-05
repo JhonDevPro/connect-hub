@@ -557,7 +557,14 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
         call.answer(current);
         attachCall(call);
       });
-      peer.on("error", (err) => setError(err.message));
+      peer.on("error", (err) => {
+        const type = (err as { type?: string }).type;
+        if (inCallRef.current && (type === "network" || type === "server-error" || type === "disconnected" || type === "socket-error" || type === "socket-closed")) {
+          setConnectionStatus("reconnecting");
+          return;
+        }
+        setError(err.message);
+      });
       peer.on("disconnected", () => {
         if (!inCallRef.current) return;
         setConnectionStatus("reconnecting");

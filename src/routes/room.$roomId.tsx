@@ -68,6 +68,7 @@ function RoomView() {
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [focusedTile, setFocusedTile] = useState<string | null>(null);
 
   // Define side panel aberto por padrão apenas em telas grandes (desktops)
   useEffect(() => {
@@ -436,44 +437,81 @@ function RoomView() {
               <div className="px-1 pb-1 text-right text-[11px] text-muted-foreground">
                 {totalParticipants} / {MAX_PARTICIPANTS} na chamada
               </div>
-              <div
-                className={cn(
-                  "grid flex-1 gap-2 sm:gap-3 overflow-y-auto p-1 content-center",
-                  totalParticipants === 1 && "grid-cols-1 max-w-4xl mx-auto w-full",
-                  totalParticipants === 2 && "grid-cols-1 sm:grid-cols-2",
-                  totalParticipants >= 3 && totalParticipants <= 4 && "grid-cols-2",
-                  totalParticipants >= 5 && totalParticipants <= 6 && "grid-cols-2 lg:grid-cols-3",
-                  totalParticipants >= 7 && totalParticipants <= 9 && "grid-cols-2 md:grid-cols-3",
-                  totalParticipants >= 10 && "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
-                )}
-              >
-                {/* Meu Vídeo Local */}
-                <VideoTile
-                  stream={localStream}
-                  name={profile?.name ? `${profile.name} (Você)` : "Você"}
-                  isLocal
-                  camOn={camOn || sharingScreen}
-                  micOn={micLive}
-                  deafened={deafened}
-                  raisedHand={raisedHand}
-                />
-
-                {/* Vídeos Remotos com Slider de Volume Individual */}
-                {remotes.map((remote) => {
-                  const m = session.memberByPeer.get(remote.peerId);
+              {(() => {
+                const tiles = [
+                  {
+                    id: "local",
+                    node: (
+                      <VideoTile
+                        stream={localStream}
+                        name={profile?.name ? `${profile.name} (Você)` : "Você"}
+                        isLocal
+                        mirror={!sharingScreen}
+                        camOn={camOn || sharingScreen}
+                        micOn={micLive}
+                        deafened={deafened}
+                        raisedHand={raisedHand}
+                      />
+                    ),
+                  },
+                  ...remotes.map((remote) => {
+                    const m = session.memberByPeer.get(remote.peerId);
+                    return {
+                      id: remote.peerId,
+                      node: (
+                        <VideoTile
+                          stream={remote.stream}
+                          name={m?.name || `Participante (${remote.peerId.slice(0, 4)})`}
+                          camOn={m?.cam_on ?? true}
+                          micOn={m?.mic_on ?? true}
+                          deafened={deafened}
+                          raisedHand={m?.raised_hand ?? false}
+                        />
+                      ),
+                    };
+                  }),
+                ];
+                const focused = tiles.find((t) => t.id === focusedTile);
+                const tileButton = (t: (typeof tiles)[number], extra?: string) => (
+                  <div
+                    key={t.id}
+                    role="button"
+                    tabIndex={0}
+                    title={focusedTile === t.id ? "Clique para voltar à grade" : "Clique para ampliar"}
+                    onClick={() => setFocusedTile((cur) => (cur === t.id ? null : t.id))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") setFocusedTile((cur) => (cur === t.id ? null : t.id));
+                    }}
+                    className={cn("min-h-0 min-w-0 cursor-pointer [&>div]:h-full [&>div]:aspect-auto", extra)}
+                  >
+                    {t.node}
+                  </div>
+                );
+                if (focused) {
+                  const others = tiles.filter((t) => t.id !== focused.id);
                   return (
-                    <VideoTile
-                      key={remote.peerId}
-                      stream={remote.stream}
-                      name={m?.name || `Participante (${remote.peerId.slice(0, 4)})`}
-                      camOn={m?.cam_on ?? true}
-                      micOn={m?.mic_on ?? true}
-                      deafened={deafened}
-                      raisedHand={m?.raised_hand ?? false}
-                    />
+                    <div className="flex flex-1 min-h-0 flex-col gap-2 p-1 md:flex-row">
+                      {tileButton(focused, "flex-1")}
+                      {others.length > 0 && (
+                        <div className="flex shrink-0 gap-2 overflow-auto md:w-56 md:flex-col">
+                          {others.map((t) => tileButton(t, "aspect-video w-40 shrink-0 md:w-full"))}
+                        </div>
+                      )}
+                    </div>
                   );
-                })}
-              </div>
+                }
+                const n = tiles.length;
+                const cols = n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
+                const rows = Math.ceil(n / cols);
+                return (
+                  <div
+                    className="grid flex-1 min-h-0 gap-2 p-1 sm:gap-3"
+                    style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}
+                  >
+                    {tiles.map((t) => tileButton(t))}
+                  </div>
+                );
+              })()}
 
               {/* Status Push-to-Talk */}
               {pushToTalk && (
