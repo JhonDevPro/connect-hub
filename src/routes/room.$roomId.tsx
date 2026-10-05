@@ -68,6 +68,7 @@ function RoomView() {
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [focusedTile, setFocusedTile] = useState<string | null>(null);
 
   // Define side panel aberto por padrão apenas em telas grandes (desktops)
   useEffect(() => {

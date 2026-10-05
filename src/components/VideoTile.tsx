@@ -7,6 +7,7 @@ type Props = {
   stream: MediaStream | null;
   name: string;
   isLocal?: boolean;
+  mirror?: boolean;
   camOn?: boolean;
   micOn?: boolean;
   deafened?: boolean;
@@ -17,6 +18,7 @@ export function VideoTile({
   stream,
   name,
   isLocal = false,
+  mirror = isLocal,
   camOn = true,
   micOn = true,
   deafened = false,
@@ -48,7 +50,7 @@ export function VideoTile({
         muted={isLocal || deafened}
         className={cn(
           "h-full w-full object-cover transition-opacity",
-          isLocal && "-scale-x-100",
+          mirror && "-scale-x-100",
           camOn ? "opacity-100" : "opacity-0",
         )}
       />
