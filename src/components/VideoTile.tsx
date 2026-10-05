@@ -12,7 +12,7 @@ type Props = {
   micOn?: boolean;
   deafened?: boolean;
   raisedHand?: boolean;
-  displayImagePath?: string | null;
+  displayImagePath?: string | null | undefined;
   /** Stable participant id used to remember this person's volume on this device */
   volumeKey?: string | undefined;
 };
