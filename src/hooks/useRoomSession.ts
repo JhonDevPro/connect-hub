@@ -268,14 +268,21 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
       if (e.code !== pttKey) return;
       setPttActive(false);
     };
-    const blur = () => setPttActive(false);
+    // Nexo Desktop (Tauri) injects a global Insert hook that dispatches this event
+    const isDesktop = !!(window as unknown as { __NEXO_DESKTOP__?: boolean }).__NEXO_DESKTOP__;
+    const globalPtt = (e: Event) => setPttActive(!!(e as CustomEvent<boolean>).detail);
+    const blur = () => {
+      if (!isDesktop) setPttActive(false);
+    };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", blur);
+    window.addEventListener("nexo-global-ptt", globalPtt);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", blur);
+      window.removeEventListener("nexo-global-ptt", globalPtt);
     };
   }, [pushToTalk, pttKey, inCall]);
 
