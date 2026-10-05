@@ -1,13 +1,15 @@
-﻿import { Mail } from "lucide-react";
+﻿import { Hand, Mail } from "lucide-react";
 import type { TeamMember } from "@/hooks/useGlobalPresence";
 import { cn } from "@/lib/utils";
 
 export function MembersList({
   members,
   title = "Membros da Equipe",
+  raisedUserIds = new Set<string>(),
 }: {
   members: TeamMember[];
   title?: string;
+  raisedUserIds?: Set<string>;
 }) {
   const onlineCount = members.filter((m) => m.isOnline).length;
 
@@ -61,6 +63,7 @@ export function MembersList({
                   <span className="truncate text-sm font-medium text-foreground">
                     {m.name}
                   </span>
+                  {raisedUserIds.has(m.id) && <Hand className="size-4 shrink-0 text-primary" aria-label="Mão levantada" />}
                   <span
                     className={cn(
                       "text-[10px] font-semibold uppercase tracking-wider",

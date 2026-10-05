@@ -541,6 +541,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
       streamRef.current = stream;
       cameraTrackRef.current = stream.getVideoTracks()[0] ?? null;
       setLocalStream(stream);
+      stream.getVideoTracks().forEach((track) => (track.enabled = camOn));
       stream.getAudioTracks().forEach((t) => (t.enabled = micOn && !pushToTalk));
 
       // Atualiza a lista de dispositivos agora que as permissões foram concedidas
