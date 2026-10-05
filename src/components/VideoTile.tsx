@@ -12,6 +12,7 @@ type Props = {
   micOn?: boolean;
   deafened?: boolean;
   raisedHand?: boolean;
+  displayImagePath?: string | null;
   /** Stable participant id used to remember this person's volume on this device */
   volumeKey?: string | undefined;
 };
@@ -35,10 +36,28 @@ export function VideoTile({
   micOn = true,
   deafened = false,
   raisedHand = false,
+  displayImagePath = null,
   volumeKey,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [volume, setVolume] = useState(100);
+  const [displayImageUrl, setDisplayImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!displayImagePath) {
+      setDisplayImageUrl(null);
+      return undefined;
+    }
+    void import("@/integrations/supabase/client").then(({ supabase }) =>
+      supabase.storage.from("profile-displays").createSignedUrl(displayImagePath, 3600),
+    ).then(({ data }) => {
+      if (active) setDisplayImageUrl(data?.signedUrl ?? null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [displayImagePath]);
 
   useEffect(() => {
     if (!volumeKey) return;
@@ -84,9 +103,13 @@ export function VideoTile({
 
       {!camOn && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-accent/40">
-          <div className="flex size-16 items-center justify-center rounded-full bg-secondary text-2xl font-semibold text-secondary-foreground">
-            {name.slice(0, 1).toUpperCase()}
-          </div>
+          {displayImageUrl ? (
+            <img src={displayImageUrl} alt={`Imagem de exibição de ${name}`} className="absolute inset-0 size-full object-contain" />
+          ) : (
+            <div className="flex size-16 items-center justify-center rounded-full bg-secondary text-2xl font-semibold text-secondary-foreground">
+              {name.slice(0, 1).toUpperCase()}
+            </div>
+          )}
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <VideoOff className="size-3" /> câmera desligada
           </span>

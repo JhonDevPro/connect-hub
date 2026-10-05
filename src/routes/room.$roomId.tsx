@@ -31,6 +31,7 @@ import { VideoTile } from "@/components/VideoTile";
 import { ChatPanel } from "@/components/ChatPanel";
 import { MembersList } from "@/components/MembersList";
 import { AttentionMenu } from "@/components/AttentionMenu";
+import { DisplayImageControl } from "@/components/DisplayImageControl";
 import { useRoomSession, MAX_PARTICIPANTS } from "@/hooks/useRoomSession";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { useGlobalPresence } from "@/hooks/useGlobalPresence";
@@ -59,7 +60,7 @@ function RoomView() {
   const params = useParams({ from: "/room/$roomId" });
   const roomId = params.roomId;
   const navigate = useNavigate();
-  const { profile, loading: profileLoading } = useSessionProfile();
+  const { profile, loading: profileLoading, reload: reloadProfile } = useSessionProfile();
   const roomsQuery = useRooms();
   const admin = useIsAdmin(profile?.id);
   const access = useRoomAccessList(profile?.id);
@@ -402,6 +403,7 @@ function RoomView() {
                 <Button type="button" variant={camOn ? "secondary" : "destructive"} size="sm" className="gap-2" onClick={() => setCamOn((value) => !value)}>
                   {camOn ? <Camera className="size-4" /> : <CameraOff className="size-4" />}{camOn ? "Câmera ligada" : "Câmera desligada"}
                 </Button>
+                <DisplayImageControl profile={profile} onChanged={reloadProfile} />
                 <Button
                   size="lg"
                   disabled={connecting}
@@ -451,6 +453,7 @@ function RoomView() {
                         micOn={micLive}
                         deafened={deafened}
                         raisedHand={raisedHand}
+                        displayImagePath={profile.displayImagePath}
                       />
                     ),
                   },
@@ -467,6 +470,7 @@ function RoomView() {
                           micOn={m?.mic_on ?? true}
                           deafened={deafened}
                           raisedHand={m?.raised_hand ?? false}
+                          displayImagePath={m?.display_image_path}
                         />
                       ),
                     };
@@ -562,6 +566,8 @@ function RoomView() {
                 >
                   {camOn ? <Camera className="size-4 sm:size-5 text-primary" /> : <CameraOff className="size-4 sm:size-5" />}
                 </Button>
+
+                <DisplayImageControl profile={profile} onChanged={reloadProfile} compact />
 
                 {/* Alternar Câmera Frontal / Traseira (Tablet) */}
                 {videoDevices.length > 1 && (

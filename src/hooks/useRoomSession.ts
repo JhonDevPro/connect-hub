@@ -8,6 +8,7 @@ export type Member = {
   user_id: string;
   name: string;
   avatar: string | null;
+  display_image_path: string | null;
   peer_id: string | null;
   cam_on: boolean;
   mic_on: boolean;
@@ -36,7 +37,7 @@ export type MediaDeviceInfoItem = {
   label: string;
 };
 
-type Me = { id: string; name: string; avatar: string | null };
+type Me = { id: string; name: string; avatar: string | null; displayImagePath: string | null };
 
 export type ConnectionStatus = "connecting" | "connected" | "unstable" | "reconnecting";
 
@@ -207,6 +208,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
             user_id: me.id,
             name: me.name,
             avatar: me.avatar,
+            display_image_path: me.displayImagePath,
             peer_id: null,
             cam_on: false,
             mic_on: false,
@@ -222,7 +224,7 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
         void supabase.removeChannel(channel);
       } catch {}
     };
-  }, [roomId, me?.id, me?.name, me?.avatar, accessGranted]);
+  }, [roomId, me?.id, me?.name, me?.avatar, me?.displayImagePath, accessGranted]);
 
   // keep presence payload in sync with call state
   useEffect(() => {
@@ -232,12 +234,13 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
       user_id: me.id,
       name: me.name,
       avatar: me.avatar,
+      display_image_path: me.displayImagePath,
       peer_id: inCall ? peerId : null,
       cam_on: inCall ? camOn || sharingScreen : false,
       mic_on: inCall ? micLive : false,
       raised_hand: inCall ? raisedHand : false,
     });
-  }, [inCall, peerId, camOn, micLive, raisedHand, sharingScreen, me?.id, me?.name, me?.avatar]);
+  }, [inCall, peerId, camOn, micLive, raisedHand, sharingScreen, me?.id, me?.name, me?.avatar, me?.displayImagePath]);
 
   useEffect(() => {
     inCallRef.current = inCall;

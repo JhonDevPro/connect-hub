@@ -16,3 +16,4 @@
 - Keep the curated room icon catalog centralized so database values, admin selection, and map rendering stay synchronized.
 - Keep room call state ephemeral in presence/broadcast; persist only durable chat replies and per-user reactions.
 - Nexo Desktop (src-tauri) loads the published site and injects window.__NEXO_DESKTOP__; the global Insert hook dispatches the 'nexo-global-ptt' window event, so web code stays browser-compatible.
+- Store camera-off display images privately by profile and expose only signed URLs derived from presence-shared storage paths.
