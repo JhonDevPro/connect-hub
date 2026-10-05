@@ -287,15 +287,25 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
   }, [pushToTalk, pttKey, inCall]);
 
   const attachCall = useCallback((call: MediaConnection) => {
+    const previous = callsRef.current.get(call.peer);
     callsRef.current.set(call.peer, call);
+    callStartedRef.current.set(call.peer, Date.now());
+    if (previous && previous !== call) {
+      try { previous.close(); } catch {}
+    }
     call.on("stream", (stream) => {
+      if (callsRef.current.get(call.peer) !== call) return;
+      connectedPeersRef.current.add(call.peer);
       setRemotes((prev) => {
         const next = prev.filter((r) => r.peerId !== call.peer);
         return [...next, { peerId: call.peer, stream }];
       });
     });
     const drop = () => {
+      // ignore stale calls that were already replaced by a newer one
+      if (callsRef.current.get(call.peer) !== call) return;
       callsRef.current.delete(call.peer);
+      connectedPeersRef.current.delete(call.peer);
       setRemotes((prev) => prev.filter((r) => r.peerId !== call.peer));
       if (inCallRef.current && navigator.onLine) {
         setConnectionStatus("reconnecting");
@@ -307,24 +317,43 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
     call.on("error", drop);
   }, []);
 
+  /* Watchdog: re-run the mesh periodically so missing participants get retried */
+  useEffect(() => {
+    if (!inCall) return;
+    const id = setInterval(() => setMeshTick((v) => v + 1), 4000);
+    return () => clearInterval(id);
+  }, [inCall]);
+
   /* ---------- P2P mesh: call every peer present in the room ---------- */
   useEffect(() => {
     const peer = peerRef.current;
     const stream = streamRef.current;
     if (!peer || !stream || !peerId || !inCall) return;
+    const now = Date.now();
+    const present = new Set<string>();
     for (const member of members) {
       const target = member.peer_id;
       if (!target || target === peerId) continue;
-      if (callsRef.current.has(target)) continue;
-      // deterministic caller: the lower peer id initiates
-      if (peerId > target) continue;
+      present.add(target);
+      if (!firstSeenRef.current.has(target)) firstSeenRef.current.set(target, now);
+      if (connectedPeersRef.current.has(target)) continue;
+      const existing = callsRef.current.get(target);
+      const startedAt = callStartedRef.current.get(target) ?? 0;
+      // a call that never delivered media within 8s is considered stuck
+      if (existing && now - startedAt < 8000) continue;
+      // lower id calls first; the other side steps in if nothing arrives in 6s
+      const waited = now - (firstSeenRef.current.get(target) ?? now);
+      if (peerId > target && waited < 6000 && !existing) continue;
       try {
         attachCall(peer.call(target, stream));
       } catch {
         /* peer may have just left */
       }
     }
-  }, [members, peerId, inCall, attachCall, localStream, reconnectTick]);
+    for (const key of [...firstSeenRef.current.keys()]) {
+      if (!present.has(key)) firstSeenRef.current.delete(key);
+    }
+  }, [members, peerId, inCall, attachCall, localStream, reconnectTick, meshTick]);
 
   useEffect(() => {
     if (!inCall) return;
