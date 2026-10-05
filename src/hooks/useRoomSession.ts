@@ -229,11 +229,11 @@ export function useRoomSession(roomId: string, me: Me | null, accessGranted = tr
       name: me.name,
       avatar: me.avatar,
       peer_id: inCall ? peerId : null,
-      cam_on: inCall ? camOn : false,
+      cam_on: inCall ? camOn || sharingScreen : false,
       mic_on: inCall ? micLive : false,
       raised_hand: inCall ? raisedHand : false,
     });
-  }, [inCall, peerId, camOn, micLive, raisedHand, me?.id, me?.name, me?.avatar]);
+  }, [inCall, peerId, camOn, micLive, raisedHand, sharingScreen, me?.id, me?.name, me?.avatar]);
 
   useEffect(() => {
     inCallRef.current = inCall;

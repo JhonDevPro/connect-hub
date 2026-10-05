@@ -452,7 +452,7 @@ function RoomView() {
                   stream={localStream}
                   name={profile?.name ? `${profile.name} (Você)` : "Você"}
                   isLocal
-                  camOn={camOn}
+                  camOn={camOn || sharingScreen}
                   micOn={micLive}
                   deafened={deafened}
                   raisedHand={raisedHand}
