@@ -21,6 +21,10 @@ import {
   X,
   Settings2,
   BellRing,
+  Hand,
+  MonitorUp,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { RoomSidebar, useRooms } from "@/components/RoomSidebar";
 import { VideoTile } from "@/components/VideoTile";
@@ -63,6 +67,7 @@ function RoomView() {
   const [activeTab, setActiveTab] = useState<"chat" | "members">("chat");
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   // Define side panel aberto por padrão apenas em telas grandes (desktops)
   useEffect(() => {
@@ -151,6 +156,11 @@ function RoomView() {
     attentionAlert,
     attentionCooldown,
     sendAttention,
+    connectionStatus,
+    raisedHand,
+    setRaisedHand,
+    sharingScreen,
+    toggleScreenShare,
     videoDevices,
     audioDevices,
     selectedVideoDeviceId,
@@ -163,6 +173,8 @@ function RoomView() {
   } = session;
 
   const totalParticipants = (inCall ? 1 : 0) + remotes.length;
+  const connectionLabel = connectionStatus === "connected" ? "Conectado" : connectionStatus === "unstable" ? "Conexão instável" : connectionStatus === "reconnecting" ? "Reconectando" : "Conectando";
+  const raisedUserIds = new Set(session.members.filter((member) => member.raised_hand).map((member) => member.user_id));
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
@@ -227,9 +239,9 @@ function RoomView() {
 
           <div className="flex items-center gap-1.5 md:gap-2">
             {inCall && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
-                <span className="size-2 rounded-full bg-primary animate-pulse" />
-                HD P2P ({totalParticipants})
+              <span className={cn("hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium", connectionStatus === "unstable" || connectionStatus === "reconnecting" ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary")}>
+                {connectionStatus === "unstable" || connectionStatus === "reconnecting" ? <WifiOff className="size-3.5" /> : <Wifi className="size-3.5" />}
+                {connectionLabel} · {totalParticipants}/10
               </span>
             )}
 
@@ -257,11 +269,14 @@ function RoomView() {
                 } else {
                   setActiveTab("chat");
                   setShowSidePanel(true);
+                  if (typeof Notification !== "undefined" && Notification.permission === "default") void Notification.requestPermission();
                 }
               }}
+              aria-label={unreadMessages > 0 ? `Chat, ${unreadMessages} mensagens não lidas` : "Chat"}
             >
               <MessageSquare className="size-4" />
               <span className="hidden md:inline">Chat</span>
+              {unreadMessages > 0 && <span className="flex min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground">{unreadMessages > 99 ? "99+" : unreadMessages}</span>}
             </Button>
 
             <Button
@@ -380,6 +395,12 @@ function RoomView() {
               </div>
 
               <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <Button type="button" variant={micOn ? "secondary" : "destructive"} size="sm" className="gap-2" onClick={() => setMicOn((value) => !value)}>
+                  {micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}{micOn ? "Microfone ligado" : "Microfone desligado"}
+                </Button>
+                <Button type="button" variant={camOn ? "secondary" : "destructive"} size="sm" className="gap-2" onClick={() => setCamOn((value) => !value)}>
+                  {camOn ? <Camera className="size-4" /> : <CameraOff className="size-4" />}{camOn ? "Câmera ligada" : "Câmera desligada"}
+                </Button>
                 <Button
                   size="lg"
                   disabled={connecting}
@@ -431,9 +452,10 @@ function RoomView() {
                   stream={localStream}
                   name={profile?.name ? `${profile.name} (Você)` : "Você"}
                   isLocal
-                  camOn={camOn}
+                  camOn={camOn || sharingScreen}
                   micOn={micLive}
                   deafened={deafened}
+                  raisedHand={raisedHand}
                 />
 
                 {/* Vídeos Remotos com Slider de Volume Individual */}
@@ -447,6 +469,7 @@ function RoomView() {
                       camOn={m?.cam_on ?? true}
                       micOn={m?.mic_on ?? true}
                       deafened={deafened}
+                      raisedHand={m?.raised_hand ?? false}
                     />
                   );
                 })}
@@ -469,6 +492,10 @@ function RoomView() {
                       : "PUSH-TO-TALK ATIVO: Segure Insert para Falar"}
                   </span>
                 </div>
+              )}
+
+              {connectionStatus === "unstable" && camOn && (
+                <div className="pb-1 text-center"><Button variant="outline" size="sm" className="gap-2" onClick={() => setCamOn(false)}><WifiOff className="size-4" />Usar somente áudio</Button></div>
               )}
 
               {/* Barra Flutuante de Controles de Mídia */}
@@ -532,6 +559,28 @@ function RoomView() {
                   onSend={(targetUserId) => void sendAttention(targetUserId)}
                 />
 
+                <Button
+                  variant={sharingScreen ? "default" : "secondary"}
+                  size="icon"
+                  className="size-10 rounded-xl shadow sm:size-11"
+                  onClick={() => void toggleScreenShare()}
+                  aria-label={sharingScreen ? "Parar compartilhamento" : "Compartilhar tela"}
+                  title={sharingScreen ? "Parar compartilhamento" : "Compartilhar tela, janela ou aba"}
+                >
+                  <MonitorUp className="size-4 sm:size-5" />
+                </Button>
+
+                <Button
+                  variant={raisedHand ? "default" : "secondary"}
+                  size="icon"
+                  className="size-10 rounded-xl shadow sm:size-11"
+                  onClick={() => setRaisedHand((value) => !value)}
+                  aria-label={raisedHand ? "Abaixar a mão" : "Levantar a mão"}
+                  title={raisedHand ? "Abaixar a mão" : "Levantar a mão"}
+                >
+                  <Hand className="size-4 sm:size-5" />
+                </Button>
+
                 {/* Switch Push-to-Talk (escondido em telas muito estreitas) */}
                 <div className="hidden sm:flex items-center gap-2 px-2 py-1 rounded-xl bg-background/60 border border-border/50">
                   <Switch
@@ -561,8 +610,8 @@ function RoomView() {
       </div>
 
       {/* Painel Lateral Direito: Chat e Membros */}
-      {showSidePanel && (
-        <aside className="fixed inset-y-0 right-0 z-40 w-80 max-w-[85vw] flex flex-col border-l border-border bg-sidebar shadow-2xl md:relative md:shadow-none md:z-auto transition-all">
+      <aside className={cn("fixed inset-y-0 right-0 z-40 flex w-80 max-w-[85vw] flex-col border-l border-border bg-sidebar shadow-2xl transition-all md:relative md:z-auto md:shadow-none", showSidePanel ? "translate-x-0 md:w-80" : "pointer-events-none translate-x-full md:w-0 md:translate-x-0 md:overflow-hidden md:border-0")}>
+        <div className="flex h-full w-80 shrink-0 flex-col">
           <div className="flex items-center border-b border-border bg-surface/30">
             <button
               onClick={() => setActiveTab("chat")}
@@ -598,17 +647,15 @@ function RoomView() {
           </div>
 
           <div className="flex-1 min-h-0 overflow-hidden">
-            {activeTab === "chat" && profile && (
-              <ChatPanel roomId={roomId} userId={profile.id} />
-            )}
+            {profile && <div className={cn("h-full", activeTab !== "chat" && "hidden")}><ChatPanel roomId={roomId} userId={profile.id} panelOpen={showSidePanel && activeTab === "chat"} onUnreadChange={setUnreadMessages} /></div>}
             {activeTab === "members" && (
               <div className="p-4 overflow-y-auto h-full">
-                 <MembersList members={roomTeamMembers} title="Membros da Sala" />
+                 <MembersList members={roomTeamMembers} title="Membros da Sala" raisedUserIds={raisedUserIds} />
               </div>
             )}
           </div>
-        </aside>
-      )}
+        </div>
+      </aside>
     </div>
   );
 }
