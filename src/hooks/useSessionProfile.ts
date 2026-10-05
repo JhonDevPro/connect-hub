@@ -6,6 +6,7 @@ export type SessionProfile = {
   id: string;
   name: string;
   avatar: string | null;
+  displayImagePath: string | null;
   email: string | null;
 };
 
@@ -43,6 +44,7 @@ export function useSessionProfile() {
       id: current.id,
       name: fallbackName,
       avatar,
+      displayImagePath: null,
       email,
     });
     setLoading(false);
@@ -51,7 +53,7 @@ export function useSessionProfile() {
     try {
       const { data: existing } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, display_image_path")
         .eq("id", current.id)
         .maybeSingle();
 
@@ -73,6 +75,7 @@ export function useSessionProfile() {
         id: current.id,
         name: profileName,
         avatar: profileAvatar,
+        displayImagePath: existing?.display_image_path ?? null,
         email,
       });
     } catch {
