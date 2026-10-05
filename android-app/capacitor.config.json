@@ -1,0 +1,9 @@
+{
+  "appId": "app.lovable.nexo",
+  "appName": "Nexo",
+  "webDir": "www",
+  "server": {
+    "url": "https://nexo-hub-p2p.lovable.app/rooms",
+    "cleartext": false
+  }
+}
